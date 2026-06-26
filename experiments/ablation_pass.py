@@ -1,5 +1,6 @@
+
 # ============================================================
-# PDN Reproducibility / Ablation Pass
+# FEN Reproducibility / Ablation Pass
 # Colab-ready single-cell script
 # ============================================================
 
@@ -19,21 +20,21 @@ TASK = "distracted"
 #   "recall5_fixed"   -> delayed recall of 5 symbols placed at beginning
 #   "recall5_random"  -> delayed recall of 5 symbols at random positions
 
-RUN_MODE = "pdn_full"
+RUN_MODE = "FEN_full"
 # Options:
 #   Baselines:
 #     "rnn"
 #     "gru"
 #     "lstm"
 #
-#   PDN variants:
-#     "pdn_full"
-#     "pdn_no_subtraction"  -> vault accumulates, but pipe is not emptied
-#     "pdn_no_skip"         -> vault becomes recurrent/tanh, so archived memory can drift
-#     "pdn_no_archive"      -> pipe subtracts diffused info, but vault is disabled
-#     "pdn_no_gate"         -> everything diffuses; gate forced open
-#     "pdn_leaky_vault"     -> vault decays over time
-#     "pdn_mlp_head"        -> full PDN with nonlinear readout head
+#   FEN variants:
+#     "FEN_full"
+#     "FEN_no_subtraction"  -> vault accumulates, but pipe is not emptied
+#     "FEN_no_skip"         -> vault becomes recurrent/tanh, so archived memory can drift
+#     "FEN_no_archive"      -> pipe subtracts diffused info, but vault is disabled
+#     "FEN_no_gate"         -> everything diffuses; gate forced open
+#     "FEN_leaky_vault"     -> vault decays over time
+#     "FEN_mlp_head"        -> full FEN with nonlinear readout head
 
 # Use "all_quick" if you want one run to compare many modes quickly.
 # RUN_MODE = "all_quick"
@@ -259,7 +260,7 @@ class BaselineRNN(nn.Module):
         return logits
 
 
-class PDN(nn.Module):
+class FEN(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_dim, mode):
         super().__init__()
         self.mode = mode
@@ -270,12 +271,12 @@ class PDN(nn.Module):
         self.gate = nn.Linear(hidden_dim, hidden_dim)
         self.vault_proj = nn.Linear(hidden_dim, hidden_dim)
 
-        # Used only by pdn_no_skip, but always defined for clean loading/counting.
+        # Used only by FEN_no_skip, but always defined for clean loading/counting.
         self.vault_recur = nn.Linear(hidden_dim, hidden_dim)
 
         head_in = hidden_dim * 2
 
-        if mode == "pdn_mlp_head":
+        if mode == "FEN_mlp_head":
             self.head = nn.Sequential(
                 nn.Linear(head_in, head_in),
                 nn.ReLU(),
@@ -293,7 +294,7 @@ class PDN(nn.Module):
         diffuse_norms = []
         raw_norms = []
 
-        actual_mode = "pdn_full" if self.mode == "pdn_mlp_head" else self.mode
+        actual_mode = "FEN_full" if self.mode == "FEN_mlp_head" else self.mode
 
         for t in range(x.shape[1]):
             xt = self.x_proj(x[:, t])
@@ -301,23 +302,23 @@ class PDN(nn.Module):
 
             h_raw = torch.tanh(self.core(z) + z)
 
-            if actual_mode == "pdn_no_gate":
+            if actual_mode == "FEN_no_gate":
                 g = torch.ones_like(h_raw)
             else:
                 g = torch.sigmoid(self.gate(h_raw))
 
             D = g * h_raw
 
-            if actual_mode == "pdn_no_subtraction":
+            if actual_mode == "FEN_no_subtraction":
                 h = h_raw
             else:
                 h = h_raw - D
 
-            if actual_mode == "pdn_no_archive":
+            if actual_mode == "FEN_no_archive":
                 S = torch.zeros_like(S)
-            elif actual_mode == "pdn_no_skip":
+            elif actual_mode == "FEN_no_skip":
                 S = torch.tanh(self.vault_recur(S) + self.vault_proj(D))
-            elif actual_mode == "pdn_leaky_vault":
+            elif actual_mode == "FEN_leaky_vault":
                 S = 0.95 * S + self.vault_proj(D)
             else:
                 S = S + self.vault_proj(D)
@@ -346,8 +347,8 @@ class PDN(nn.Module):
 def build_model(mode, input_dim, output_dim, hidden_dim):
     if mode in ["rnn", "gru", "lstm"]:
         return BaselineRNN(input_dim, output_dim, hidden_dim, mode)
-    if mode.startswith("pdn"):
-        return PDN(input_dim, output_dim, hidden_dim, mode)
+    if mode.startswith("FEN"):
+        return FEN(input_dim, output_dim, hidden_dim, mode)
     raise ValueError(f"Unknown RUN_MODE: {mode}")
 
 
@@ -537,9 +538,9 @@ def train_one(seed, mode):
             else:
                 extra = f"token={val['token_acc']:.3f} exact={val['exact_acc']:.3f}"
 
-            pdn_extra = ""
+            FEN_extra = ""
             if "gate_mean" in val:
-                pdn_extra = (
+                FEN_extra = (
                     f" gate={val['gate_mean']:.3f}"
                     f" pipe={val['pipe_norm']:.2f}"
                     f" vault={val['vault_norm']:.2f}"
@@ -552,7 +553,7 @@ def train_one(seed, mode):
                 f"acc={val['acc']:.3f} | "
                 f"{extra} | "
                 f"best={best['acc']:.3f}@{best['epoch']}"
-                f"{pdn_extra}"
+                f"{FEN_extra}"
             )
 
     elapsed = time.time() - start
@@ -585,13 +586,13 @@ if RUN_MODE == "all_quick":
         "rnn",
         "gru",
         "lstm",
-        "pdn_full",
-        "pdn_no_subtraction",
-        "pdn_no_skip",
-        "pdn_no_archive",
-        "pdn_no_gate",
-        "pdn_leaky_vault",
-        "pdn_mlp_head",
+        "FEN_full",
+        "FEN_no_subtraction",
+        "FEN_no_skip",
+        "FEN_no_archive",
+        "FEN_no_gate",
+        "FEN_leaky_vault",
+        "FEN_mlp_head",
     ]
     run_seeds = [SEEDS[0]]
 else:
