@@ -14,7 +14,6 @@ Through rigorous, parameter-matched empirical evaluations across 1D synthetic lo
 2.  **Structural Isomorphism** (Slot-indexed and Spatial Multi-Scale Escrows) preserves data addressing and bypasses destructive pooling operators.
 3.  **Active State Depletion** (subtractive routing) explicitly cures **Residual Feature Bloat**—a newly identified phenomenon where unmitigated residual connections accumulate massive, gradient-saturating noise over depth and time. FEN consistently outperforms standard and residual baselines, delivering state-of-the-art convergence velocity and parameter efficiency across all evaluated domains.
 
-Here is the rewritten **Section 1 (Introduction)**. It integrates the biological inspiration directly into the introductory narrative, keeping the report clean, cohesive, and completely removing the need to re-number any subsequent sections.
 
 ***
 
