@@ -1,6 +1,6 @@
 # ==============================================================================
 # Pushing FEN (Copy-Only) to SOTA Potential on FordA Time-Series Classification
-# 100 Epochs, Non-linear readout, Dropout, and learning rate scheduler
+# 100 Epochs, Conv1D temporal decimation stem, non-linear readout, and scheduler
 # ==============================================================================
 
 import os
@@ -19,7 +19,7 @@ from sklearn.metrics import f1_score, accuracy_score
 SEED = 2026
 TARGET_PARAMS = 100000
 BATCH_SIZE = 64
-LR = 2e-3  # Slightly higher starting learning rate with decay scheduler
+LR = 2e-3  # Starting learning rate with decay scheduler
 NUM_EPOCHS = 100  # More epochs to allow deep features to converge
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -106,18 +106,22 @@ def prepare_data():
     
     return train_loader, val_loader, test_loader
 
-# --- 3. OPTIMIZED MODEL DEFINITION ---
+# --- 3. OPTIMIZED MODEL WITH CONV1D STEM ---
 
 class OptimizedFeatureEscrowRNN(nn.Module):
     def __init__(self, input_size, hidden_size, num_classes=2, dropout=0.3):
         super().__init__()
         self.hidden_size = hidden_size
-        self.x_proj = nn.Linear(input_size, hidden_size)
+        
+        # 1D Convolutional Stem for temporal decimation and local feature extraction
+        # Stride of 4 downsamples the 500-step sequence to 125 steps
+        self.stem = nn.Conv1d(in_channels=input_size, out_channels=hidden_size, kernel_size=7, stride=4, padding=3)
+        
         self.core = nn.Linear(hidden_size, hidden_size)
         self.gate = nn.Linear(hidden_size, hidden_size)
         self.escrow_proj = nn.Linear(hidden_size, hidden_size)
         
-        # High-capacity non-linear readout head with dropout to prevent overfitting
+        # Non-linear readout head
         self.fc = nn.Sequential(
             nn.Linear(hidden_size * 2, hidden_size),
             nn.ReLU(),
@@ -126,23 +130,27 @@ class OptimizedFeatureEscrowRNN(nn.Module):
         )
         
     def forward(self, x, return_stats=False):
+        # x shape: [B, seq_len, 1]
+        # Permute to [B, channels, seq_len] for Conv1D
+        x = x.permute(0, 2, 1)
+        x = self.stem(x) # Output shape: [B, hidden_size, seq_len // 4]
+        # Permute back to [B, seq_len // 4, hidden_size] for FEN
+        x = x.permute(0, 2, 1)
+        
         B, seq_len, _ = x.shape
         h = torch.zeros(B, self.hidden_size, device=x.device)
         E = torch.zeros(B, self.hidden_size, device=x.device)
         
-        # Speed Optimization: Pre-project the entire sequence outside the loop
-        x_proj_all = self.x_proj(x)
-        
         gate_means = []
         for t in range(seq_len):
-            xt = x_proj_all[:, t, :]
+            xt = x[:, t, :] # Input is already projected by Conv1D
             z = h + xt
             f_raw = torch.tanh(self.core(z) + z)
             
             g = torch.sigmoid(self.gate(f_raw))
             D = g * f_raw
             
-            # Copy-only routing (no subtraction to preserve temporal context flow)
+            # Copy-only routing
             h = f_raw
             E = E + self.escrow_proj(D)
             
@@ -189,7 +197,6 @@ if __name__ == "__main__":
         print(f"================================================================================")
         
         optimizer = optim.Adam(model.parameters(), lr=LR, weight_decay=1e-4)
-        # Learning rate scheduler: decays learning rate if validation F1 plateaus
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=8)
         criterion = nn.CrossEntropyLoss()
         
@@ -241,10 +248,8 @@ if __name__ == "__main__":
             val_acc = accuracy_score(val_targets, val_preds) * 100
             val_f1 = f1_score(val_targets, val_preds, average='macro') * 100
             
-            # Step the scheduler based on validation F1
             scheduler.step(val_f1)
             
-            # Log progress every 5 epochs or on best performance
             if epoch % 5 == 0 or val_f1 > best_val_f1:
                 print(f"Epoch {epoch:03d}/{NUM_EPOCHS} | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f} | Val Acc: {val_acc:.2f}% | Val F1: {val_f1:.2f}% | Active Norm: {avg_active_norm:.2f}")
             
