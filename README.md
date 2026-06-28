@@ -1,50 +1,35 @@
 # Research Report: Feature-Escrow Networks (FEN)
+### By Beca Alemu (matricabytess24@gmail.com)
 ### Resolving the Active Memory and Abstractive Bottlenecks via Subtractive Routing
 
 ---
 
 ## Abstract
 
-Deep neural networks suffer from fundamental information-routing bottlenecks. In temporal sequences, models face the **Active Memory Bottleneck**: they are forced to map active, high-frequency computation and static, long-term context into a single, shared hidden state, leading to catastrophic context drift. In spatial architectures, models face the **Abstractive Bottleneck**: deep networks must aggressively pool and compress spatial dimensions to build global semantic features, irreversibly destroying rare, fine-grained, low-level textures required for precise downstream decisions.
+Deep neural networks suffer from fundamental information-routing bottlenecks. In temporal sequences (RNNs, LSTMs), models face the **Active Memory Bottleneck**: they are forced to map active, high-frequency computation and static, long-term context into a single, shared hidden state, leading to catastrophic context drift. In spatial architectures (CNNs, Transformers), models face the **Abstractive Bottleneck**: deep networks must aggressively pool and compress spatial dimensions to build global semantic features, irreversibly destroying rare, fine-grained, low-level textures required for precise downstream decisions.
 
-We introduce the **Feature-Escrow Network (FEN)**. FEN fundamentally decouples active computation from protected memory. At each computational layer, an *Escrow Gate* identifies "resolved" features, deposits them into a structurally protected **State Escrow**, and explicitly subtracts them from the **Active Stream** (Pipe). 
+We introduce the **Feature-Escrow Network (FEN)**. FEN fundamentally decouples active computation from protected memory. At each computational layer, an *Escrow Gate* identifies "resolved" features, deposits them into a structurally protected **Escrow** (memory bank), and explicitly subtracts them from the **Active Stream**. 
 
-Through rigorous, parameter-matched empirical evaluations across 1D synthetic logic, 1D real-world sensor streams, and 2D spatial hierarchies, we prove that:
-1.  **State Escrows** prevent context drift and sequence memory decay.
-2.  **Structural Isomorphism** (Slot-indexed and Spatial Multi-Scale Escrows) preserves data addressing and bypasses destructive pooling operators.
-3.  **Active State Depletion** (subtractive routing) explicitly cures **Residual Feature Bloat**—a newly identified phenomenon where unmitigated residual connections accumulate massive, gradient-saturating noise over depth and time. FEN consistently outperforms standard and residual baselines, delivering state-of-the-art convergence velocity and parameter efficiency across all evaluated domains.
+Through rigorous empirical ablation across 1D temporal sequences and 2D spatial hierarchies, we prove that:
+1. Protected Escrows prevent context drift in sequential data.
+2. Structured Escrows (Slot-indexed and Spatial Multi-Scale) preserve data addressing and mathematically bypass destructive pooling operators.
+3. *Active State Depletion* (subtractive routing) explicitly cures Residual Feature Bloat. On the constrained CIFAR-100 benchmark (<260k parameters), the Multi-Scale FEN reduced active state norms by >50% and achieved a +5.8% absolute accuracy improvement over a topologically equivalent Residual baseline.
 
+---
 
-***
+## 1. Introduction: The Escrow Principle
 
-# 1. Introduction & Biological Inspiration
+The standard paradigm of deep learning relies on accumulation. Residual connections (`+ x`), dense concatenations, and gated memory cells all attempt to force the network to carry an ever-growing payload of features from input to output.
 
-Deep neural networks suffer from fundamental information-routing bottlenecks. In temporal sequences (RNNs, LSTMs), models face the **Active Memory Bottleneck**: they are forced to map active, high-frequency computation and static, fragile long-term context into a single, shared hidden state vector. Over long sequences, the active, noisy gradients of dynamic updates inevitably overwrite static memory, causing catastrophic context drift.
+This creates a severe vulnerability in constrained-parameter regimes: highly valuable, fully resolved features (such as a static ID in a sequence, or a fine texture in an image) are forced to remain in the active residual stream. In this active environment, they are subjected to continuous non-linear transformations, noise, and destructive pooling operations.
 
-In spatial architectures (CNNs, Transformers), models face the **Abstractive Bottleneck**. To build high-level semantics, the network must aggressively pool and compress spatial dimensions (e.g., $32{\times}32 \rightarrow 16{\times}16 \rightarrow 8{\times}8$). However, if a final decision relies on a rare, low-level detail, the network is forced to drag that high-resolution data through every abstraction layer, wasting parameter capacity and causing feature interference.
+The **Feature-Escrow Network (FEN)** solves this via secure feature archiving. When a layer resolves a highly valuable feature, it does not risk leaving it in the active computational graph. Instead, it places the feature into **Escrow**—a secure, untouchable holding state. The feature is safely held there until the very end of the network, where the final classifier cashes out the Escrow to make its decision. By actively *depleting* the residual stream of finished features, FENs free up computational capacity for deeper, more complex abstractions.
 
-### 1.1 Biological Inspiration
-To resolve these bottlenecks, we draw inspiration from the mechanical processing and absorption of nutrients in the human small intestine. 
-
-During digestion, complex food material moves sequentially through the active intestinal tract (the lumen). Rather than holding all material in the tract until the very end, the intestinal wall continuously evaluates the state of digestion. Once specific nutrients (such as glucose or amino acids) are fully broken down and resolved, they are absorbed through the intestinal wall and routed into the bloodstream. 
-
-Crucially, this absorption is a physical removal process. By taking resolved nutrients out of the tract, the volume of the remaining luminal mass is reduced. This empty space relieves the active digestive pathway, allowing it to process the remaining complex material more efficiently. The absorbed nutrients then travel safely in the bloodstream, completely insulated from the active, high-entropy digestive chemistry, to be utilized by the body at the end of the process.
-
-### 1.2 The Feature-Escrow Network (FEN)
-The Feature-Escrow Network (FEN) maps these physical operations directly to a dual-state neural topology:
-
-1.  **The Active Stream (Pipe):** The active residual stream performing ongoing non-linear feature transformations.
-2.  **The Escrow Gate:** A learned Sigmoid mechanism evaluating whether a feature in the Active Stream is fully resolved.
-3.  **The State Escrow:** A parallel, structure-aware memory bank (the "bloodstream") that safely accumulates resolved features outside the active computational graph.
-4.  **Subtractive Routing (Active State Depletion):** The explicit, mathematical subtraction of the resolved features from the Active Stream.
-
-Rather than forcing the network to carry an ever-growing payload of features in a single stream, the FEN places resolved features into **Escrow**—a secure, untouchable holding state. The active stream is physically depleted of those features, keeping it lean and highly abstractable, while the accumulated features are safely held in Escrow until the final classifier reads them out at the very end of the network.
-
-***
+---
 
 ## 2. Core Architecture & Mathematical Formulation
 
-For an Active Stream state $h_{l}$ at layer (or timestep) $l$:
+The architecture replaces standard Recurrent or Residual blocks with the **Feature-Escrow Block**. For an Active Stream state $h_{l}$ at layer (or timestep) $l$:
 
 **1. Active Transformation:**
 $$f_{raw} = \text{Transform}(h_{l}) + h_{l}$$
@@ -67,69 +52,67 @@ The final network readout is a synthesis of the ultimate active abstraction ($h_
 
 ## 3. Phase I: Temporal Sequences & The Active Memory Bottleneck
 
-Our initial hypothesis posited that standard RNNs fail at long-range context preservation because active updates mathematically overwrite static memory. We conducted strict parameter-matched ablations to isolate the exact mechanisms of failure and recovery.
+Our initial hypothesis posited that standard RNNs fail at long-range context preservation because active updates mathematically overwrite static memory. We conducted strict parameter-matched ablations (~15k parameters) to isolate the exact mechanisms of failure and recovery.
 
-### 3.1 Distracted Context Retention (96-Step Synthetic Sequence)
-The network was tasked with holding a static ID token at $t=0$ while processing dense mathematical operations and noise for 95 timesteps (parameter budget: ~15k parameters). We evaluated standard LSTMs, a true Temporal Residual LSTM, and FENs powered by both basic RNN and LSTM active streams.
+### 3.1 Distracted Context Retention
+The network was tasked with holding a static ID token at $t=0$ while processing dense mathematical operations and noise for 96 timesteps.
+*   **LSTM Baseline:** ~10.3% accuracy (Catastrophic forgetting).
+*   **FEN (No Escrow / No Skip):** ~11.3% accuracy (Confirmed the Escrow is the engine of retention).
+*   **FEN (Copy-Only):** ~99.3% accuracy.
+*   **FEN (Full Subtractive Routing):** **98.9% accuracy**.
 
-| Model Configuration | Active Stream (Pipe) | Temporal Residual (`+ h`) | Subtractive Routing | Active Stream Norm (L2) | Peak Accuracy |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| Standard LSTM | LSTM | No | No | ~4.30 | 14.20% |
-| **Residual LSTM** | **LSTM** | **Yes** | **No** | **~120.32** | **89.60%** |
-| **FEN (RNN-Pipe)** | **Raw RNN** | **Yes** | **Yes** | **~2.64** | **99.90%** |
-| FEN (LSTM-Pipe) | LSTM | Yes | Yes | ~0.83 | 99.70% |
-
-#### Scientific Interpretation:
-1.  **Catastrophic Overwriting:** The standard LSTM fails entirely (14.20%), as the continuous updates required for the math task overwrite the early ID.
-2.  **Residual Mitigation & Bloat:** Adding a raw temporal residual connection to the LSTM (`lstm_residual`) allows gradients to bypass the vanishing gradient bottleneck, enabling it to reach 89.60%. However, without subtractive routing, the active state experiences severe **Temporal Feature Bloat**, exploding to an L2 norm of **120.32**, saturating gradients and preventing the network from achieving perfect classification.
-3.  **The FEN Triumph:** FEN (RNN-Pipe) achieved a near-perfect **99.90% accuracy**, reaching the LSTM's absolute peak accuracy in just 5 epochs. Because it actively depletes the stream of resolved features, the active Pipe norm remained completely clean (**2.64**), proving that *Subtractive Escrow completely replaces the need for complex LSTM gating.*
+**Scientific Pivot 1:** The `Copy-Only` ablation proved that for simple scalar context retention, active state depletion (subtraction) is not strictly required. Relieving the Active Stream of the *responsibility* to remember the ID by copying it to Escrow was sufficient. Subtraction becomes mathematically necessary only in dimensionally complex or highly constrained environments.
 
 ### 3.2 The Commutativity Trap & Ordered Recall
 We challenged the architecture to recall 5 random symbols in exact temporal order.
 *   **Global Additive Escrow:** ~0% exact sequence accuracy (despite ~35% token accuracy).
-*   **Slot-Indexed Escrow:** **100% exact accuracy** (by Epoch 3).
+*   **Slot-Indexed Escrow:** **100% exact accuracy**.
 
-**The Law of Structural Isomorphism:** An additive Escrow is a commutative superposition ($A+B = B+A$). It preserves *content* but destroys *address*. A memory system must match the topological structure of the data. Ordered sequences require temporal slots.
-
----
-
-## 4. Phase II: Real-World Time-Series (UCI HAR)
-
-To verify FEN on high-noise, real-world data, we evaluated the architecture on the **UCI Human Activity Recognition (HAR)** dataset (128-step sequences of 9D smartphone inertial sensors) under a strict **~12,500 parameter constraint**. 
-
-| Architecture | Temporal Residual | Subtractive Routing | Active Stream Norm (L2) | Peak Accuracy | Best Epoch |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| Residual MLP (Width 10) | Yes (Spatial) | No | N/A | 82.90% | Ep 25 |
-| Standard LSTM (Width 50) | No | No | ~4.16 | 88.70% | Ep 25 |
-| **Residual LSTM (Width 50)** | **Yes (Temporal)** | **No** | **~287.23** | **84.93%** | **Ep 25** |
-| FEN (Copy-Only) (Width 60) | Yes (Temporal) | No | ~6.70 | 90.02% | Ep 10 |
-| **FEN (Full Subtractive)** | **Yes (Temporal)** | **Yes** | **~2.90** | **92.94%** | **Ep 19** |
-
-#### Scientific Interpretation:
-1.  **The Temporal Explosion:** Adding a raw temporal residual connection to the LSTM (`lstm_residual`) over 128 timesteps without subtractive routing causes a **massive vector explosion**. The L2 Norm skyrocketed to **287.23**. This unmitigated accumulation of historical noise saturated the representation space, dropping accuracy from 88.7% (standard LSTM) down to 84.93%.
-2.  **The Subtractive Cure:** The Full FEN (RNN-Pipe) achieved **92.94%**. By explicitly subtracting the deposited features (`- D`), the FEN dropped its active stream norm by 99% compared to the residual LSTM (down to a pristine **2.90**). The active Pipe remained highly agile, allowing FEN to surpass the standard LSTM's absolute peak accuracy (88.70%) in just **3 epochs**.
+**Scientific Pivot 2 (The Law of Structural Isomorphism):** An additive Escrow is a commutative superposition ($A+B = B+A$). It preserves *content* but destroys *address*. A memory system must match the topological structure of the data. Ordered sequences require temporal slots. Spatial images require spatial coordinates.
 
 ---
 
-## 5. Phase III: Spatial Vision & The Abstractive Bottleneck
+## 4. Phase II: Spatial Vision & The Abstractive Bottleneck
 
-Deep Convolutional Networks face the **Abstractive Bottleneck**: spatial pooling mathematically deletes fine-grained textures in pursuit of global shapes. 
+Following the laws of topological addressing, we engineered the **Spatial FEN** for Computer Vision. 
 
-We evaluated the architecture on **CIFAR-100** under a strict **~250,000 parameter limit**. We designed the **Multi-Scale FEN**. At 32x32, 16x16, and 8x8 resolutions, Escrow Gates deposit resolved textures into Spatial Escrows, subtract them from the Active Stream, and pool the remaining residue.
+Deep Convolutional Networks face the **Abstractive Bottleneck:** spatial pooling (e.g., `MaxPool2d`) mathematically deletes fine-grained textures in pursuit of global shapes. To preserve a high-frequency texture, a standard CNN must waste parameter capacity dragging it through the pooling layers.
 
-To isolate the subtraction mechanism, we compared it to a **Topological ResNet Baseline** matching the exact `f(x) + x` topology of the FEN Active Stream.
+### 4.1 Synthetic Image Binding
+The network had to scan 16 patches to find the spatial coordinate of a query digit.
+*   **Patch-LSTM Baseline:** 15.4% accuracy.
+*   **FEN (Global Escrow):** 6.7% (Random chance; confirmed spatial blurring destroys binding).
+*   **FEN (Spatial Escrow, No Subtraction):** 38.8% accuracy.
+*   **FEN (Spatial Escrow, Full Subtraction):** **~65.0% accuracy**.
 
-| Architecture | Spatial Pooling | Subtractive Routing | Active Stream L2 Norm | Peak Accuracy |
+**Conclusion:** In spatial-binding tasks, copying features is insufficient. Subtraction explicitly forces the active stream to offload visual evidence, dropping the active state L2 norm from ~5.1 to ~2.0, keeping the computational space lean and highly maneuverable.
+
+---
+
+## 5. Phase III: CIFAR-100 & Residual Feature Bloat
+
+To rigorously prove the necessity of Subtractive Routing on real-world data, we tested on **CIFAR-100** under a strict micro-parameter regime (**~250,000 parameters**). At this scale, a network cannot afford to drag early textures through successive pooling layers without starving its deep semantic filters.
+
+We designed the **Multi-Scale FEN**. At 32x32, 16x16, and 8x8 resolutions, Escrow Gates deposit resolved textures into resolution-specific Spatial Escrows, subtract them from the Active Stream, and pool the remaining residue.
+
+### 5.1 The Definitive Ablation
+To prove that FEN does not win merely by using residual connections, we upgraded the CNN baseline to a **Topological ResNet Baseline**, matching the exact `f(x) + x` topology of the FEN Active Stream.
+
+| Architecture | Residual Topology (`+ x`) | Subtractive Routing | Active Stream L2 Norm | Peak Accuracy |
 | :--- | :--- | :--- | :--- | :--- |
-| Plain CNN | Yes | No | N/A | 59.58% |
+| Plain CNN | No | No | N/A | 59.58% |
 | ResNet Baseline | Yes | No | N/A | **55.56%** |
 | FEN (Copy-Only) | Yes | No | **19.80** | 57.11% |
 | **FEN (Full)** | **Yes** | **Yes** | **8.60** | **61.50%** |
 
-#### Scientific Interpretation:
-1.  **Spatial Feature Bloat:** Just as in temporal sequences, standard spatial residual connections (`+ x`) actively *damaged* the network, dropping accuracy from 59.5% to 55.5%. Accumulating features prior to spatial pooling causes them to collide, destroying fine-grained detail.
-2.  **The Spatial Vault Advantage:** The `Copy-Only` FEN left features in the residual stream. It suffered from the exact same Feature Bloat as the ResNet baseline (Active Norm: 19.80), capping accuracy at 57.11%.
-3.  **The Subtractive Cure:** By explicitly subtracting the deposited features from the residual stream (`+ x - D`), the FEN dropped its active state norm to **8.60**. Emptying the stream of what was already finished allowed the network to build deep global abstractions cleanly, achieving a **+5.8% absolute accuracy jump** over the equivalent ResNet baseline.
+### 5.2 The Mathematical Vindication
+These logs reveal the ultimate proof of the architecture:
+1.  **Residual Feature Bloat:** At 250k parameters, standard residual connections (`+ x`) actively *damaged* the network, dropping accuracy from 59.5% to 55.5%. In constrained regimes, residual connections act as an accumulation of noise; the network lacks the capacity to separate signal from the resulting feature soup.
+2.  **The Failure of Copying:** The `Copy-Only` FEN left features in the residual stream. It suffered from the exact same Feature Bloat as the ResNet baseline. The Active Stream's L2 norm exploded to ~19.8, capping accuracy at 57.1%.
+3.  **The Subtractive Cure:** By explicitly subtracting the deposited features from the residual stream (`+ x - D`), the FEN cured residual feature bloat. The Active Stream norm dropped by over 50% (to 8.6). By emptying the stream of what was already finished, the network kept the active pathway lean for deep global abstraction, achieving a **+5.8% absolute accuracy jump** over the equivalent ResNet baseline.
+
+### 5.3 Readout Synthesis
+We explored replacing the final Global Average Pooling (GAP) with a **Cross-Attention Readout**, where the final pooled Active Stream queried the unpooled spatial Escrows. While computationally elegant, accuracy dropped slightly to 60.26%. We concluded that for pure image classification, absolute spatial coordinates are irrelevant; GAP acts as an optimal "Bag of Features" extractor. Cross-Attention readouts remain strictly reserved for future dense prediction tasks (e.g., Image Segmentation) where localization is mandatory.
 
 ---
 
@@ -139,14 +122,58 @@ The Feature-Escrow Network is governed by three verified laws of information rou
 
 1.  **The Law of Decoupling:** Deep networks must not be forced to utilize the same mathematical tensors for ongoing non-linear abstraction and static historical preservation. Doing so induces Context Drift (in 1D) and the Abstractive Bottleneck (in 2D).
 2.  **The Law of Structural Isomorphism:** A protected memory Escrow is only effective if its topology mirrors the data domain. Static context requires Global Escrows; ordered sequences require Slot Escrows; spatial hierarchies require Multi-Scale Spatial Escrows.
-3.  **The Law of Active State Depletion:** Adding a parallel memory path without actively suppressing those same features in the main computational graph induces Universal Feature Bloat (vector explosions in time, capacity starvation in space). Explicit mathematical subtraction (`- D`) is the strict requirement to enforce true dimension recycling.
+3.  **The Law of Active State Depletion:** Adding a parallel memory path without actively suppressing those same features in the main computational graph induces Residual Feature Bloat. Explicit mathematical subtraction (`- D`) is the strict requirement to enforce true dimension recycling, relieve capacity constraints, and accelerate optimization.
 
 ---
 
 ## 7. Future Trajectory: LLMs and the KV-Cache
 
-Having mathematically mapped the boundary conditions of FENs across time and space, the next logical frontier is Large Language Models (LLMs). 
+Having mapped the boundary conditions of FENs in temporal sequences and spatial hierarchies, the next logical frontier is Large Language Models (LLMs). 
 
-Modern Generative Transformers suffer from catastrophic VRAM explosion because the KV-Cache permanently accumulates all historical tokens. By applying Subtractive Routing to pretrained LLMs, we propose introducing a trainable Escrow Gate that evaluates context chunks, deposits resolved semantic meaning into a bounded set of *Escrow Tokens*, and actively flushes the KV-Cache. 
+Modern Generative Transformers suffer from catastrophic VRAM explosion because the KV-Cache permanently accumulates all historical tokens—the ultimate manifestation of the Active Memory Bottleneck. By applying Subtractive Routing to pretrained LLMs, we propose introducing a trainable Escrow Gate that evaluates context chunks, deposits resolved semantic meaning into a bounded set of *Escrow Tokens*, and actively flushes the KV-Cache. 
 
 This mechanism promises to enable strictly bounded, infinite-context language modeling, translating the mathematical elegance of feature offloading into the foundational architecture of artificial reasoning.
+
+---
+
+## 8. Repository Structure & Experiments
+
+The `experiments/` directory contains standalone, Colab-ready PyTorch scripts to reproduce each phase of our findings:
+
+*   [`experiments/ablation_pass.py`](file:///c:/Users/beca/Desktop/FEN/experiments/ablation_pass.py): Runs the Phase I temporal sequence experiments including distracted context retention, gate/vault norm statistics, and baseline comparisons (RNN, GRU, LSTM).
+*   [`experiments/temporal_residual_lstsm.py`](file:///c:/Users/beca/Desktop/FEN/experiments/temporal_residual_lstsm.py): Verifies FEN against standard and residual-connection LSTMs on temporal counting distraction tasks.
+*   [`experiments/patch_fen.py`](file:///c:/Users/beca/Desktop/FEN/experiments/patch_fen.py): Runs the Phase II patch-vision experiments (first candidate digit matching and scan-order marked digit recall).
+*   [`experiments/uci-har.py`](file:///c:/Users/beca/Desktop/FEN/experiments/uci-har.py): Real-world sequence verification using the UCI Human Activity Recognition (UCI HAR) dataset.
+*   [`experiments/cifar-100.py`](file:///c:/Users/beca/Desktop/FEN/experiments/cifar-100.py): Phase III CIFAR-100 experiments comparing Plain CNN, ResNet, Copy-Only FEN, and Full FEN with subtractive routing.
+
+---
+
+## 9. Getting Started
+
+### Installation
+Clone the repository and install the dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+### Running Experiments
+To run the CIFAR-100 ablation pass:
+```bash
+python experiments/cifar-100.py
+```
+
+To run the temporal sequence ablation:
+```bash
+python experiments/ablation_pass.py
+```
+
+To run the patch-vision experiment:
+```bash
+python experiments/patch_fen.py
+```
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [`LICENSE`](file:///c:/Users/beca/Desktop/FEN/LICENSE) file for details.
