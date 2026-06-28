@@ -1,6 +1,6 @@
 # ==============================================================================
-# Pushing FEN (Copy) vs Residual LSTM to SOTA Potential on UCR FordA
-# Both models equipped with Conv1D stem, 100 Epochs, MLP readout, and scheduler
+# Pushing FEN (Copy) vs LSTMs to SOTA Potential on UCR FordA
+# All models equipped with Conv1D stem, 100 Epochs, MLP readout, and scheduler
 # ==============================================================================
 
 import os
@@ -108,14 +108,46 @@ def prepare_data():
 
 # --- 3. MODEL DEFINITIONS ---
 
-# 3.1 Optimized Residual LSTM Baseline (with Conv1D Stem)
+# 3.1 Optimized Vanilla LSTM Baseline (with Conv1D Stem - No Residuals)
+class OptimizedVanillaLSTM(nn.Module):
+    def __init__(self, input_size, hidden_size, num_classes=2, num_layers=2, dropout=0.3):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        
+        # 1D Conv Stem
+        self.stem = nn.Conv1d(in_channels=input_size, out_channels=hidden_size, kernel_size=7, stride=4, padding=3)
+        
+        # Fast native PyTorch LSTM
+        self.lstm = nn.LSTM(hidden_size, hidden_size, num_layers, batch_first=True)
+        
+        self.fc = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_size, num_classes)
+        )
+
+    def forward(self, x, return_stats=False):
+        x = x.permute(0, 2, 1)
+        x = self.stem(x)
+        x = x.permute(0, 2, 1)
+        
+        out, (h_n, c_n) = self.lstm(x)
+        last_out = out[:, -1, :]
+        logits = self.fc(last_out)
+        if return_stats:
+            return logits, {"active_norm": last_out.norm(dim=-1).mean().item()}
+        return logits
+
+# 3.2 Optimized Residual LSTM Baseline (with Conv1D Stem)
 class OptimizedResidualLSTM(nn.Module):
     def __init__(self, input_size, hidden_size, num_classes=2, num_layers=2, dropout=0.3):
         super().__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         
-        # 1D Conv Stem (same as FEN)
+        # 1D Conv Stem
         self.stem = nn.Conv1d(in_channels=input_size, out_channels=hidden_size, kernel_size=7, stride=4, padding=3)
         
         self.cells = nn.ModuleList([
@@ -131,7 +163,6 @@ class OptimizedResidualLSTM(nn.Module):
         )
 
     def forward(self, x, return_stats=False):
-        # x shape: [B, seq_len, 1]
         x = x.permute(0, 2, 1)
         x = self.stem(x)
         x = x.permute(0, 2, 1)
@@ -166,7 +197,7 @@ class OptimizedResidualLSTM(nn.Module):
             return logits, {"active_norm": last_out.norm(dim=-1).mean().item()}
         return logits
 
-# 3.2 Optimized Feature-Escrow Network (with Conv1D Stem)
+# 3.3 Optimized Feature-Escrow Network (with Conv1D Stem)
 class OptimizedFeatureEscrowRNN(nn.Module):
     def __init__(self, input_size, hidden_size, num_classes=2, dropout=0.3):
         super().__init__()
@@ -188,7 +219,6 @@ class OptimizedFeatureEscrowRNN(nn.Module):
         )
         
     def forward(self, x, return_stats=False):
-        # x shape: [B, seq_len, 1]
         x = x.permute(0, 2, 1)
         x = self.stem(x)
         x = x.permute(0, 2, 1)
@@ -229,7 +259,9 @@ def count_params(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 def build_model(mode, input_size, hidden_dim):
-    if mode == "lstm_residual":
+    if mode == "lstm_vanilla":
+        return OptimizedVanillaLSTM(input_size=input_size, hidden_size=hidden_dim, num_layers=2)
+    elif mode == "lstm_residual":
         return OptimizedResidualLSTM(input_size=input_size, hidden_size=hidden_dim, num_layers=2)
     elif mode == "fen_copy":
         return OptimizedFeatureEscrowRNN(input_size=input_size, hidden_size=hidden_dim)
@@ -245,7 +277,7 @@ def choose_hidden_dim(mode, input_size):
         
         # Ensure FEN stays at a parameter disadvantage to be strict
         if mode == "fen_copy":
-            if params <= 99106:  # Matched to OptimizedResidualLSTM's parameters
+            if params <= 99106:  # Matched to Optimized LSTM parameter budget
                 diff = 99106 - params
                 if diff < best_diff:
                     best_h = h
@@ -368,14 +400,15 @@ if __name__ == "__main__":
     try:
         train_loader, val_loader, test_loader = prepare_data()
         
+        modes = ["lstm_vanilla", "lstm_residual", "fen_copy"]
         results = {}
-        for mode in ["lstm_residual", "fen_copy"]:
+        for mode in modes:
             results[mode] = train_and_evaluate(mode, train_loader, val_loader, test_loader, input_size=1)
             
         print("\n" + "#" * 80)
-        print("SOTA COMPARISON (BOTH MODELS WITH CONV1D STEM)")
+        print("SOTA COMPARISON (ALL MODELS WITH CONV1D STEM)")
         print("#" * 80)
-        for mode in ["lstm_residual", "fen_copy"]:
+        for mode in modes:
             res = results[mode]
             val_f1_str = f"{res['best_val_f1']:.2f}%"
             test_f1_str = f"{res['test_f1']:.2f}%"
