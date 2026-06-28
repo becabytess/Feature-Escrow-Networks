@@ -93,7 +93,9 @@ We challenged the architecture to recall 5 random symbols in exact temporal orde
 
 ---
 
-## 4. Phase II: Real-World Time-Series (UCI HAR)
+## 4. Phase II: Real-World Time-Series
+
+### 4.1 Activity Recognition (UCI HAR)
 
 To verify FEN on high-noise, real-world data, we evaluated the architecture on the **UCI Human Activity Recognition (HAR)** dataset (128-step sequences of 9D smartphone inertial sensors) under a strict **~12,500 parameter constraint**. 
 
@@ -108,6 +110,25 @@ To verify FEN on high-noise, real-world data, we evaluated the architecture on t
 #### Scientific Interpretation:
 1.  **The Temporal Explosion:** Adding a raw temporal residual connection to the LSTM (`lstm_residual`) over 128 timesteps without subtractive routing causes a **massive vector explosion**. The L2 Norm skyrocketed to **287.23**. This unmitigated accumulation of historical noise saturated the representation space, dropping accuracy from 88.7% (standard LSTM) down to 84.93%.
 2.  **The Subtractive Cure:** The Full FEN (RNN-Pipe) achieved **92.94%**. By explicitly subtracting the deposited features (`- D`), the FEN dropped its active stream norm by 99% compared to the residual LSTM (down to a pristine **2.90**). The active Pipe remained highly agile, allowing FEN to surpass the standard LSTM's absolute peak accuracy (88.70%) in just **3 epochs**.
+
+### 4.2 Non-Contact Heart-Rate Estimation (UBFC-rPPG)
+
+To benchmark FEN on sequence-to-sequence regression, we evaluated it on the **UBFC-rPPG** dataset (predicting the continuous Blood Volume Pulse (BVP) signal from 9D facial region-of-interest color fluctuations over 128 frames) under a strict **~105,000 parameter budget**. 
+
+The code and models for this benchmark are hosted in the [rPPG Repository](https://github.com/becabytess/rppg---using-selfies-to-measure-heart-rate-and-breathing-patterns).
+
+| Architecture | Temporal Residual | Subtractive Routing | Active Stream Norm (L2) | Best Val Loss (Pearson + 0.2*MSE) | Pearson Loss (1 - Corr) | MSE Loss |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Residual RNN | Yes (Temporal) | No | ~756.76 | 0.9829 | 0.9740 | 1.0198 |
+| Residual LSTM (Ep 1) | Yes (Temporal) | No | ~223.25 | 1.0017 | 0.9890 | 1.0527 |
+| Vanilla RNN | No | No | ~8.53 | 0.2353 | 0.2020 | 0.3687 |
+| Vanilla LSTM | No | No | ~4.12 | 0.2239 | 0.1920 | 0.3522 |
+| **FEN (RNN-Pipe)** | **Yes (Temporal)** | **Yes** | **~5.17** | **0.1848** | **0.1574** | **0.2945** |
+
+#### Scientific Interpretation:
+1.  **Rhythmic BVP Correlation**: FEN achieved a Pearson correlation loss of **0.1574**, mapping to an **$84.3\%$ correlation** with the target BVP signal, significantly beating the Vanilla LSTM ($80.8\%$) and Vanilla RNN ($79.8\%$).
+2.  **Temporal Feature Bloat Collapse**: Adding unmitigated residual connections to standard RNN/LSTMs caused severe vector explosions (norms peaking at **756.76** and **223.25**), gradient-saturating the representation space and causing both models to collapse (losses near 1.0).
+3.  **Clean Active Tracking**: FEN's subtractive routing kept the active state norm at a lean **5.17**. This kept the active stream agile enough to track rapid frame-to-frame color shifts, while the protected Escrow accumulated the long-term phase history of the pulse.
 
 ---
 
