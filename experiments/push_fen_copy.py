@@ -275,23 +275,17 @@ def choose_hidden_dim(mode, input_size):
         model = build_model(mode, input_size, h)
         params = count_params(model)
         
-        # Ensure FEN stays at a parameter disadvantage to be strict
-        if mode == "fen_copy":
-            if params <= 99106:  # Matched to Optimized LSTM parameter budget
-                diff = 99106 - params
-                if diff < best_diff:
-                    best_h = h
-                    best_diff = diff
-        else:
-            diff = abs(params - TARGET_PARAMS)
-            if diff < best_diff:
-                best_h = h
-                best_diff = diff
+        diff = abs(params - TARGET_PARAMS)
+        if diff < best_diff:
+            best_h = h
+            best_diff = diff
     return best_h
 
 # --- 5. TRAINING & EVALUATION LOOP ---
-def train_and_evaluate(mode, train_loader, val_loader, test_loader, input_size):
+def train_and_evaluate(mode, input_size):
+    # Replicate the exact seed sequence of the single-model run
     set_seed(SEED)
+    train_loader, val_loader, test_loader = prepare_data()
     
     hidden_dim = choose_hidden_dim(mode, input_size)
     model = build_model(mode, input_size, hidden_dim).to(DEVICE)
@@ -398,12 +392,10 @@ def train_and_evaluate(mode, train_loader, val_loader, test_loader, input_size):
 
 if __name__ == "__main__":
     try:
-        train_loader, val_loader, test_loader = prepare_data()
-        
         modes = ["lstm_vanilla", "lstm_residual", "fen_copy"]
         results = {}
         for mode in modes:
-            results[mode] = train_and_evaluate(mode, train_loader, val_loader, test_loader, input_size=1)
+            results[mode] = train_and_evaluate(mode, input_size=1)
             
         print("\n" + "#" * 80)
         print("SOTA COMPARISON (ALL MODELS WITH CONV1D STEM)")
