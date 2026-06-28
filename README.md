@@ -1,5 +1,4 @@
 # Research Report: Feature-Escrow Networks (FEN)
-### By Beka Alemu (beka.alemuu@gmail.com)
 ### Resolving the Active Memory and Abstractive Bottlenecks via Subtractive Routing
 
 ---
