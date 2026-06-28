@@ -199,9 +199,10 @@ class OptimizedResidualLSTM(nn.Module):
 
 # 3.3 Optimized Feature-Escrow Network (with Conv1D Stem)
 class OptimizedFeatureEscrowRNN(nn.Module):
-    def __init__(self, input_size, hidden_size, num_classes=2, dropout=0.3):
+    def __init__(self, input_size, hidden_size, num_classes=2, subtractive=False, dropout=0.3):
         super().__init__()
         self.hidden_size = hidden_size
+        self.subtractive = subtractive
         
         # 1D Conv Stem
         self.stem = nn.Conv1d(in_channels=input_size, out_channels=hidden_size, kernel_size=7, stride=4, padding=3)
@@ -236,8 +237,12 @@ class OptimizedFeatureEscrowRNN(nn.Module):
             g = torch.sigmoid(self.gate(f_raw))
             D = g * f_raw
             
-            # Copy-only routing
-            h = f_raw
+            # Routing selection
+            if self.subtractive:
+                h = f_raw - D  # Subtractive depletion routing
+            else:
+                h = f_raw      # Copy-only routing
+                
             E = E + self.escrow_proj(D)
             
             if return_stats:
@@ -264,7 +269,9 @@ def build_model(mode, input_size, hidden_dim):
     elif mode == "lstm_residual":
         return OptimizedResidualLSTM(input_size=input_size, hidden_size=hidden_dim, num_layers=2)
     elif mode == "fen_copy":
-        return OptimizedFeatureEscrowRNN(input_size=input_size, hidden_size=hidden_dim)
+        return OptimizedFeatureEscrowRNN(input_size=input_size, hidden_size=hidden_dim, subtractive=False)
+    elif mode == "fen_subtractive":
+        return OptimizedFeatureEscrowRNN(input_size=input_size, hidden_size=hidden_dim, subtractive=True)
     else:
         raise ValueError(f"Unknown mode: {mode}")
 
@@ -392,7 +399,7 @@ def train_and_evaluate(mode, input_size):
 
 if __name__ == "__main__":
     try:
-        modes = ["lstm_vanilla", "lstm_residual", "fen_copy"]
+        modes = ["lstm_vanilla", "lstm_residual", "fen_copy", "fen_subtractive"]
         results = {}
         for mode in modes:
             results[mode] = train_and_evaluate(mode, input_size=1)
