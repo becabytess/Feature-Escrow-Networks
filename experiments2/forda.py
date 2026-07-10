@@ -26,7 +26,7 @@ NUM_EPOCHS = 50  # Must be 50 to capture standard FEN's late-gestation phase tra
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Set the seed index to resume from (e.g. set to 3 to skip the first 3 seeds we already ran)
-START_SEED_INDEX = 0
+START_SEED_INDEX = 4
 
 # Polarity Regularization Coefficient to sharpen gating decisions
 POLARITY_COEFF = 0.05
