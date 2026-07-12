@@ -1,7 +1,7 @@
 # Feature-Escrow Networks (FEN)
 
 **Active science track:** [`fen_lab/`](fen_lab/) — clean-slate experiments, one question per script.  
-**This README** documents the full rigorous journey: inspiration, operators, results, and what is actually proven.
+**This README** is the rigorous narrative: why FEN exists, which failures it targets, what we measured, and what we claim.
 
 Earlier explorations live under [`history/`](history/) for reference only. They are **not** part of this path’s evidence base.
 
@@ -16,43 +16,53 @@ Feature-Escrow-Networks/
 
 ---
 
-## 1. Where the idea comes from
+## How to read this document
 
-### The problem FEN is trying to solve
+The order of sections matches the **reasoning journey**, not “latest exp number wins.”
+
+1. **Problem** we claim standard nets have  
+2. **Biological idea** and the core FEN operators  
+3. **Synthetic probes** built to force that problem into the open  
+4. **Foundation results** — residual / LSTM / FEN on those probes (**capability cliffs**, not −10% tables)  
+5. **What write/read/delivery actually need** (ablations)  
+6. **Real 1D data** (support + limits)  
+7. **What is frozen** and what is still open  
+
+**Floor vs lag:** on the hard probes, wrong models often land at **chance / exact ≈ 0**, not “slightly worse.” That distinction is load-bearing. Do not read a final-acc table on ECG the same way as **exact recall** or **distracted ID×count**.
+
+---
+
+## 1. The problem
 
 Most sequential models force **one** hidden state to do two jobs at once:
 
-1. **Active computation** — absorb the current token, update, count, react to noise  
+1. **Active computation** — absorb the current step, update, count, react to noise  
 2. **Long-lived memory** — keep facts that must survive many steps of that activity  
 
-When both live in the same tensor, activity tends to **overwrite** memory. Residual connections help keep gradients alive, but on long sequences they also pile unresolved features into the pipe until the stream becomes **bloated** (high norm, hard to train, context drift).
+When both live in the same tensor, activity tends to **overwrite** memory. Residuals help gradients, but on long sequences they also pile unresolved features into the stream until it becomes **bloated** (high norm, context drift, dual-role collapse).
 
-That dual-role conflict is the target: *not* “invent a better LSTM cell,” but **route information so working memory and archive are not the same place**.
+That is the target claim:
 
-### Biological inspiration — the small intestine
+> Working memory and archive should **not** be the same place. Resolved features should **leave** the active path.
 
-The design metaphor is **digestion in the small intestine**, not a literal biophysical model.
+This is not “invent a better LSTM cell.” It is a **routing** claim: commit, store outside, deplete the pipe.
+
+---
+
+## 2. Biological inspiration — the small intestine
+
+Metaphor, not biophysics.
 
 | Biology | Role | FEN analogue |
 |---------|------|----------------|
 | **Lumen (gut tract)** | Active processing of material still being broken down | **Pipe** \(h\) — active residual stream |
 | **Absorptive decision** | Is this nutrient ready to leave the tract? | **Gate** \(g\) — what is “resolved” |
 | **Absorption into bloodstream** | Move resolved nutrients *out* of the lumen | **Escrow write** — deposit into archive \(E\) |
-| **Physical removal from the tract** | Volume leaves the gut; tract stays free for the rest | **Depletion** — \(h \leftarrow f - D\) |
+| **Physical removal from the tract** | Volume leaves the gut | **Depletion** — \(h \leftarrow f - D\) |
 | **Bloodstream → later use** | Nutrients travel insulated from digestive chaos | **Archive read** at query / final time |
-| **No continuous dumping back into the gut** | Blood is not re-poured into the lumen every inch | **No every-step reinject** (exp04) |
+| **No continuous re-pour into the gut** | Blood is not dumped back every inch | **No every-step reinject** |
 
-The important mechanical point is **removal**, not only copying. A copy-only “vault” that never depletes the pipe still leaves the lumen crowded. FEN’s claim is stronger: **resolved features should leave the active stream**.
-
-```text
-food in lumen  →  absorb when ready  →  bloodstream holds nutrients
-                      ↓
-              lumen mass decreases
-                      ↓
-              remaining material can still be processed
-```
-
-Mapped to a step:
+Important: **removal**, not only copy. A vault that never depletes the pipe still leaves the lumen crowded.
 
 ```text
 h  →  transform  →  f
@@ -62,395 +72,359 @@ h  →  transform  →  f
                  →  later: head([h, E]) # use archive without living in it
 ```
 
-That is the entire scientific bet of this lab: **decouple active stream from protected memory, and deplete the active stream when you commit.**
-
 ---
 
-## 2. Operators under study
+## 3. Core operators (one skeleton)
 
-All `fen_lab` models are built from the same skeleton. What changes between variants is **how the escrow is written** and **how / when it is read**.
+Everything in `fen_lab` is the same machine with **swappable write/read**:
 
-### Always (canonical skeleton)
+| Step | Always |
+|------|--------|
+| 1 | Propose on the pipe (residual-style transform) |
+| 2 | Gate → commit \(D\) |
+| 3 | Write \(D\) into external archive \(E\) |
+| 4 | Deplete: \(h \leftarrow f - D\) |
+| 5 | Deliver \(E\) at the right time (final / query), usually \(\mathrm{head}([h, \mathrm{arch}])\) |
 
-1. **Propose** on the pipe (residual-style transform)  
-2. **Gate** → commit \(D\)  
-3. **Write** \(D\) into an external archive \(E\)  
-4. **Deplete** the pipe: \(h \leftarrow f - D\)  
-5. **Deliver** archive to the head at the right time (final and/or query), usually via **concat** \([h, \mathrm{arch}]\)
-
-### Write algebras tested
-
-| Write | Intuition | Topology match |
-|-------|-----------|----------------|
-| **Bag** | Additive / commutative escrow (“set of facts”) | Static IDs, dual-role, unordered context |
-| **Hard pointer tape** | Ordered slots, write head advances | Ordered lists / position-sensitive labels |
-| **Soft γ-tape** | Continuous address + soft shift | Order *if* readout is cell-aligned |
-| **Channel-roll** | Non-commutative update into escrow | Long 1D sensors where structure in the vault helps |
-
-### Read algebras tested
-
-| Read | Intuition |
-|------|-----------|
-| **Pool / concat** | Classification from summary of \(E\) + final \(h\) |
-| **Slot / cell-aligned** | Head aligned to tape cells (order tasks) |
-| **Mid-read** | Head sees \([h, E]\) at a query timestep |
-| **Gated reinject** | Dump escrow back into \(h\) every step (almost always bad) |
-
-### Controls
+| Write mode | Intuition | Built for |
+|------------|-----------|-----------|
+| **Bag** | Additive, commutative “set of facts” | Static ID / dual-role |
+| **Hard pointer / slots** | Ordered cells; pointer advances | Exact ordered lists |
+| **Soft γ-tape** | Soft address + shift | Order only with **cell-aligned** read |
+| **Channel-roll** | Non-commutative vault update | Long 1D sensors (real data track) |
 
 | Control | Role |
 |---------|------|
-| **residual** | Same pipe, **no** escrow — dual load on \(h\) alone |
-| **lstm** | Strong classical baseline (real data only) |
+| **residual** | Same pipe, **no** escrow |
+| **lstm** | Classical single-state recurrent baseline |
 
 ---
 
-## 3. Why `fen_lab` (and why `history/`)
+## 4. Why synthetic probes first
 
-The active track is deliberately separate from earlier FEN explorations (now archived under `history/`).
+If the claim is “single-state nets fail dual-role and ordered archive,” we should not start on ECG accuracy tables. Those can look “close” while the hard mechanisms never fire.
 
-| Principle | Practice |
-|-----------|----------|
-| One question per script | exp01…exp05 each freeze a claim or kill a bad idea |
-| Synthetic first | Prove operators on **distracted** / **recall** toys before real waveforms |
-| Parameter-matched | Hidden width chosen so models sit near a shared param budget |
-| Honest demotion | Ideas that fail (always-on reinject, soft tape + pool as order fix) are marked demoted, not kept in the story |
-| Real data last | exp05 only after the synthetic freeze |
+We built two **foundation probes** (\(T=96\), ~15k params, matched width) that force the claimed failure modes into the open:
 
-If a result is not produced by a script under `fen_lab/`, it is **out of scope** for this document’s claims.
+### 4.1 Distracted counting (dual-role / overwrite)
 
----
+- **t = 0:** a static **ID** pulse  
+- **later:** noisy **+ / −** count events + distractors  
+- **label:** joint **ID × count bin** (30-way)
 
-## 4. Experimental journey
+**What it tests:** can the model keep a committed fact while the pipe stays busy?  
+**Success:** high **joint acc** and high **id_acc** (count alone is not enough).  
+**Failure floor:** joint acc ~ chance / ~0.1, ID ~ chance, even if count looks fine.
 
-### How to run (any exp)
+This is the probe closest to the **original FEN idea**.
 
-1. Colab → **GPU** runtime  
-2. Paste the **entire** file from [`fen_lab/`](fen_lab/) into one cell → Run  
-3. Toggle `FAST_MODE` at the top when present (`True` = quick pilot, `False` = multi-seed / fuller)
+### 4.2 recall5 (exact ordered memory)
 
-Deps: **torch + numpy** for exp01–04; **+ pandas** for exp05 (auto-download). See `requirements.txt`.
+- Five symbols appear early (with distractors later)  
+- Model must emit the **full ordered sequence**  
+- **Primary metric: exact** = all five correct (not token accuracy alone)
 
-| Exp | File | Question |
-|-----|------|----------|
-| **01** | [`fen_lab/exp01_baseline_dual_task.py`](fen_lab/exp01_baseline_dual_task.py) | Dual-task baseline: which FEN write wins **distracted** vs **recall5**? |
-| **02** | [`fen_lab/exp02_ode_fen_order_ablation.py`](fen_lab/exp02_ode_fen_order_ablation.py) | Why soft tape fails order — bag escape, sharpness, event shift, or **readout**? |
-| **03** | [`fen_lab/exp03_write_vs_readout.py`](fen_lab/exp03_write_vs_readout.py) | Write × readout grid; first hybrid that wins **both** tasks |
-| **04** | [`fen_lab/exp04_mid_deliver.py`](fen_lab/exp04_mid_deliver.py) | Is delivery **mid-read of \(E\)** or **every-step reinject**? |
-| **05** | [`fen_lab/exp05_real_data.py`](fen_lab/exp05_real_data.py) | Does the freeze hold on **MIT-BIH**? |
-| **05b** | [`fen_lab/exp05_forda.py`](fen_lab/exp05_forda.py) | Same models on **FordA** (incl. longer re-run) |
+**What it tests:** can the archive preserve **order / non-commutativity**?  
+**Success:** exact → high (→ 1.0).  
+**Failure floor:** exact **≈ 0** (token may still climb a little — that is not success).
 
----
+### 4.3 How to score these tables
 
-### exp01 — Baseline dual-task family
-
-**Tasks (synthetic, \(T=96\), ~15k params)**
-
-- **distracted:** static ID at \(t=0\), then noisy count events → dual-role + depletion stress  
-- **recall5:** ordered delayed recall → structure / non-commutativity stress  
-
-**Models:** residual · fen_bag · fen_roll · fen_slot · ode_fen (soft tape + bag)
-
-**Findings (FAST)**
-
-| Task | Winner | Losers / notes |
-|------|--------|----------------|
-| distracted | **fen_bag** (~99%) | residual fails ID; pure slot fails dual-role |
-| recall5 | **fen_slot** climbs | bag / roll / soft under **pool** readout ≈ fail order |
-
-**Interpretation:**  
-Depletion + **bag** is the right algebra for dual-role static facts.  
-Ordered lists need **ordered write and/or cell-aligned read**, not bag alone under a pooled head.
+| Language to avoid | What we mean instead |
+|-------------------|----------------------|
+| “LSTM competes” | On **which** task? Foundation probes ≠ real classification |
+| “loses by 5%” | Often **exact 0 vs 0.96** or **acc 0.10 vs 0.99** |
+| Winner-only rows | Always show **floors** for residual / LSTM / wrong write |
 
 ---
 
-### exp02 — Soft-tape order ablations
+## 5. Foundation results — do the claimed failures exist?
 
-**Question:** Soft addressable tape almost solved order in some stories — *why* did it fail under pool readout? Four hypotheses:
+Same generators, ~15k params, seed 1. Controls and matching FEN modes on **both** probes  
+([`fen_lab/exp01_baseline_dual_task.py`](fen_lab/exp01_baseline_dual_task.py), [`fen_lab/exp01b_lstm_baseline.py`](fen_lab/exp01b_lstm_baseline.py)).
 
-| H | Intervention | Result |
-|---|--------------|--------|
-| H1 | No bag (remove dual-role escape) | **Rejected** as order fix |
-| H2 | Entropy-sharpen address | **Rejected** |
-| H3 | Event-gated shift | **Rejected** |
-| H4 | **Cell-aligned / slot readout** | **Accepted** — recall → perfect |
+### 5.1 recall5 — exact ordered sequence
 
-**Also:** on distracted, bag / full ODE-with-bag stay strong; pure order-only models fail ID.
-
-**Interpretation:** Soft write is not enough; **readout topology** decides order. Soft tape needs a slot head. Bag remains required for dual-role.
-
----
-
-### exp03 — Write × readout grid
-
-Systematic pairing of write (bag / hard / soft) and read (pool / slot), including hybrids.
-
-| Model | recall5 exact | distracted acc |
-|-------|---------------:|---------------:|
-| bag_pool | ~0 | ~0.97 |
-| hard_pool | **~0.96** | ~0.20 |
-| hard_slot | 1.0 | ~0.20 |
-| soft_pool | ~0.06 | ~0.23 |
-| soft_slot | 1.0 | ~0.23 |
-| soft_bag_pool | ~0.08 | ~0.91 |
-| **soft_bag_slot** | **1.0** | **~0.91** |
-
-**Findings**
-
-- **Hard write alone** can order under pool (slots already discrete).  
-- **Soft write** needs **slot readout** to order.  
-- **Bag** is required for dual-role; bag does **not** break slot order.  
-- First hybrid that wins **both** tasks: tape (hard or soft) + bag + **task-appropriate head**.
-
----
-
-### exp04 — Mid-sequence delivery (T4)
-
-**Question:** Classic FEN only reads \(E\) at the end. Can the archive be **used mid-sequence** without re-poisoning the pipe?
-
-**Task:** interrupted distracted counting — query flag at \(t=40\) for mid-ID; final label still dual-role.
-
-| Model | mid_id | final / count | pipe | Verdict |
-|-------|--------|---------------|------|---------|
-| residual | high early, weak final | poor | fat | dual load fails long-term |
-| bag_h_only | eventually mid (slow) | good | rises | cheats by re-stuffing ID into \(h\) |
-| **bag_read** | **fast + high** | **excellent** | **lean** | **correct delivery** |
-| bag_gated | high mid | **hurts final** | **bloated (~35)** | reinject recreates residual disease |
-| soft_bag_read | good | good | lean | same lesson with tape+bag |
-| soft_bag_gated | mid ok | hurts final | bloated | reinject killed |
-
-**Interpretation (freeze for delivery)**
+| Model | exact | token | Verdict |
+|-------|------:|------:|---------|
+| residual_rnn | **0.000** | 0.099 | Floor. Fat pipe. |
+| **lstm** | **0.000** | 0.098 | **Floor. Flat zero exact.** |
+| fen_bag | **0.001** | ~0.19–0.34 | Token can rise; **exact still floor** (commutative bag). |
+| fen_roll | **~0.00** | ~0.3 | Did **not** unlock exact-5 in this budget. |
+| **fen_slot** | **0.96 → 1.0** | ~0.99–1.0 | **Only family that nails order** here. |
 
 ```text
-T4 = explicit mid/query read of archive  (e.g. head([h, E]))
-   ≠ every-step gated reinject into the pipe
+exact:  fen_slot ~1   |   residual / lstm / bag / roll ~ 0
+```
+
+LSTM is not “slightly behind slot.” It is in the **same failure class as residual** on exact recall.
+
+### 5.2 Distracted counting — dual-role
+
+| Model | acc | id | count | Verdict |
+|-------|----:|---:|------:|---------|
+| residual_rnn | **0.088** | 0.114 | 0.768 | Floor joint label; ID dies; pipe ~8.5. |
+| **lstm** | **0.103** | 0.105 | 0.973 | **Same pattern:** count can look fine; **ID / joint floor.** |
+| **fen_bag** | **0.988** | **0.996** | **0.992** | **Nails dual-role.** Lean pipe. |
+| fen_roll | **~0.82–0.94** | high | high | Learns dual-role (weaker/slower than bag). |
+| fen_slot | **0.185** | 0.185 | **~1.0** | Count OK; **ID destroyed** (wrong topology for dual-role). |
+
+```text
+joint acc:  fen_bag ~0.99  |  lstm ~0.10  |  residual ~0.09  |  slot ~0.19
+```
+
+Again: **capability cliff**, not a leaderboard nudge.
+
+### 5.3 Capability matrix (the foundation claim)
+
+| Model | recall5 exact | distracted joint | Role in the story |
+|-------|:-------------:|:----------------:|-------------------|
+| residual | ✗ floor | ✗ floor | Dual-load without escrow fails |
+| **lstm** | ✗ **floor** | ✗ **floor** | Classical single-state baseline fails **both** hard probes |
+| fen_bag | ✗ floor | ✓ **~1** | Correct algebra for **dual-role** |
+| fen_slot | ✓ **~1** | ✗ floor ID | Correct algebra for **order** |
+| one write for all tasks | — | — | **False** — topology must match |
+
+```text
+LSTM solves neither foundation probe.
+fen_bag  solves dual-role, not exact order.
+fen_slot solves exact order, not dual-role.
+```
+
+**This is the scientific start of the project:** the failure modes we named are real under controls people respect (residual + LSTM), and FEN modes that match the topology **close the gap to ceiling**, not by a few points.
+
+*(LSTM was always part of this foundation comparison in spirit; the explicit matched LSTM run is `exp01b`. Treat it as part of the opening evidence, not a late side quest.)*
+
+---
+
+## 6. Digging into write / read (why not one FEN forever)
+
+Once floors are established, the next question is **which operators** buy which capability.
+
+### 6.1 Soft tape order ablations ([`exp02`](fen_lab/exp02_ode_fen_order_ablation.py))
+
+Soft addressable tape looked like a “general ordered escrow.” Under a **pooled** head it stayed near floor on exact. Hypotheses:
+
+| H | Idea | Result on recall5 exact |
+|---|------|-------------------------|
+| H1 | Remove bag escape | **No** — still fails order |
+| H2 | Sharpen address entropy | **No** |
+| H3 | Event-gated shift | **No** |
+| H4 | **Cell-aligned / slot readout** | **Yes → exact 1.0** |
+
+On distracted: bag / ODE-with-bag stay high; pure order models without bag stay on the **ID floor**.
+
+**Lesson:** soft write is not enough; **readout topology** decides order. Bag remains required for dual-role.
+
+### 6.2 Write × readout grid ([`exp03`](fen_lab/exp03_write_vs_readout.py))
+
+Full numbers (seed 1) — winners **and** floors:
+
+| Model | recall5 exact | distracted acc | Story |
+|-------|---------------:|---------------:|-------|
+| bag_pool | **0.003** | **0.973** | Dual-role only |
+| hard_pool | **0.955** | **0.203** | Order only (hard write enough under pool) |
+| hard_slot | **1.000** | **0.203** | Order only |
+| soft_pool | **0.061** | **0.232** | Floor both |
+| soft_slot | **1.000** | **0.232** | Order only |
+| soft_bag_pool | **0.084** | **0.909** | Dual-role only (bag escape) |
+| **soft_bag_slot** | **1.000** | **0.909** | **Both** |
+
+**Lessons:**
+
+- Hard write alone can order; soft write needs **slot readout**.  
+- Bag is required for dual-role; bag does **not** break slot order.  
+- First hybrid that wins **both** foundation probes: **ordered path + bag + task-appropriate head**.
+
+### 6.3 Mid-sequence delivery ([`exp04`](fen_lab/exp04_mid_deliver.py))
+
+Classic FEN often only reads \(E\) at the end. Can the archive be used **mid-sequence** without re-poisoning the pipe?
+
+Interrupted distracted task: query flag mid-run for mid-ID; final label still dual-role.
+
+| Model | Mid-ID | Final dual-role | Pipe | Verdict |
+|-------|--------|-----------------|------|---------|
+| residual | early OK, then weak | poor | fat | dual load fails |
+| bag_h_only | slow / cheats via pipe | good | rises | ID re-stuffed into \(h\) |
+| **bag_read** | **fast + high** | **excellent** | **lean** | **correct: read \(E\)** |
+| bag_gated (reinject every step) | high mid | **hurts final** | **~35** | reinject = residual disease |
+| soft_bag_read | good | good | lean | same lesson |
+| soft_bag_gated | mid ok | hurts final | bloated | reinject killed |
+
+```text
+Deliver = query/final read of archive
+        ≠ every-step dump of E back into h
 ```
 
 ---
 
-### Synthetic freeze (after exp01–04)
+## 7. Synthetic freeze (operators)
+
+After the foundation + ablations:
 
 ```text
-CANONICAL FEN (lab freeze)
+CANONICAL FEN
 1. Residual propose on pipe h
 2. Gate → commit D → write external archive
 3. Deplete: h ← f − D
-4. Deliver: head([h, arch]) at query/final time
+4. Deliver: head([h, arch]) at query/final
    — NOT continuous reinject
 
-WRITE  = match task topology
-  bag          → dual-role / static / set facts
-  hard (+slot) → ordered multi-token labels
-  soft         → only with cell-aligned readout
+WRITE  (match task topology)
+  bag           → dual-role / static / set facts
+  hard (+ slot read) → ordered multi-token labels
+  soft          → only with cell-aligned readout
+  bag + ordered path → when BOTH foundation probes matter
 
-READ   = pool/concat for classification;
-         slot-aligned when labels are ordered lists
+READ
+  pool/concat   → classification / dual-role head
+  slot-aligned  → ordered multi-token outputs
+  mid-read      → when the task queries E mid-sequence
 ```
 
-| Keep | Demote / kill |
+| Keep | Kill / demote |
 |------|----------------|
 | Depletion + external escrow | Always-on gated reinject |
-| Bag for dual-role | Soft γ-tape as **default** order fix under pool |
-| Hard write / slot read for lists | “One write algebra for all tasks” |
-| Explicit mid-read of archive | Treating channel-roll as mandatory core (reopened on real data) |
+| Bag for dual-role | Soft γ-tape as default order fix under pool |
+| Hard write / slot read for lists | “One write algebra for every task” |
+| Explicit mid-read of archive | Treating residual/LSTM as strong on the **foundation** probes |
 
 ---
 
-### exp05 — Real data (does the freeze survive waveforms?)
+## 8. Real 1D data — does escrow still matter?
 
-Same skeleton, ~**75k** params, CUDA-graph speed path (GPU preload, full batches, no per-step `.item()`).
+Different regime: real classification can look “close” on final acc even when foundation probes showed floors. Still useful as a **transfer** check, not as a replacement for §5.
 
-| Model | Role |
-|-------|------|
-| residual | no-escrow control |
-| fen_bag | deplete + bag + concat |
-| fen_hard_bag | hard tape + bag + pool/concat |
-| fen_roll | deplete + channel-roll escrow + concat |
-| lstm | classical baseline |
+Same skeleton, ~**75k** params ([`exp05`](fen_lab/exp05_real_data.py), [`exp05b`](fen_lab/exp05_forda.py)).
 
-**Datasets**
-
-| Dataset | Shape | Role |
-|---------|-------|------|
-| **MIT-BIH** | \([N, 187, 1]\), 5 classes | short ECG morphology |
-| **FordA** | \([N, 500, 1]\), 2 classes | long 1D sensor / late features |
-
-#### MIT-BIH — pilot (seed 1, 12 ep, batch 1000)
-
-| Model | best acc | pipe (approx) | Story |
-|-------|---------:|--------------:|-------|
-| residual | **0.863** flat | ~14.5 | majority class; not learning morphology |
-| fen_bag | **0.941** climbing | ~10.5 | escrow works |
-| fen_hard_bag | **0.931** | ~6.1 | good, leaner pipe |
-| **fen_roll** | **0.963** | ~8.3 | best under this budget |
-| lstm | **0.935** late climb | ~4.1 | competitive, no escrow story |
-
-```text
-MIT-BIH:  roll ≫ bag ≥ lstm ≥ hard_bag ≫ residual (majority)
-```
-
-#### FordA — pilot (seed 1, 20 ep)
+### 8.1 MIT-BIH (seed 1, 12 ep)
 
 | Model | best acc | Story |
 |-------|---------:|-------|
-| residual | 0.519 | chance + fat pipe |
-| fen_bag | 0.590 | slight help, no solve |
-| fen_hard_bag | 0.600 | same tier as bag |
-| **fen_roll** | **0.803** | only clear learner |
-| lstm | 0.540 | near chance |
-
-At **20 epochs**, bag/hard looked almost useless. That reading was **premature**.
-
-#### FordA — longer re-run (seed 2, 40 ep)
-
-| Model | best acc | best @ | Story |
-|-------|---------:|-------:|-------|
-| residual | 0.520 | ep6 | still dead |
-| fen_bag | **0.854** | **ep40** | late takeoff; still rising at end |
-| fen_hard_bag | **0.859** | ep39 | same tier as bag; leanest FEN pipe |
-| **fen_roll** | **0.890** | ep34 | highest peak; better sample efficiency |
-| lstm | 0.549 | ep19 | still dead |
+| residual | **0.863** flat | Majority class; not learning morphology |
+| fen_bag | **0.941** | Escrow works |
+| fen_hard_bag | **0.931** | Good; leaner pipe |
+| **fen_roll** | **0.963** | Best under this budget |
+| lstm | **0.935** | Late climb — **can look competitive on this easier regime** |
 
 ```text
-FordA @ 40 ep:  roll 0.89  ≳  hard ≈ bag ~0.85–0.86  ≫  lstm ≈ residual ~chance
+MIT-BIH final acc is not the foundation story.
+LSTM can approach FEN here; it could not on exact-5 / distracted dual-role.
 ```
 
-**What the longer run changed**
+### 8.2 FordA
 
-| After pilot (20 ep) | After longer (40 ep) |
-|---------------------|----------------------|
-| “Only roll works on FordA” | **Too strong** — bag/hard become real learners with time |
-| Bag insufficient | **Under-trained**, not architecturally dead |
-| Roll sole solution | **Fastest + slightly best**, not exclusive |
+**Pilot (seed 1, 20 ep):** roll **0.80**; bag/hard ~0.59–0.60; residual/lstm ~chance.  
+**Longer (seed 2, 40 ep):**
 
-**Unchanged**
+| Model | best acc | Story |
+|-------|---------:|-------|
+| residual | 0.520 | still dead |
+| fen_bag | **0.854** | late takeoff (under-trained at 20 ep) |
+| fen_hard_bag | **0.859** | same tier as bag; lean pipe |
+| **fen_roll** | **0.890** | highest peak |
+| lstm | 0.549 | still dead |
 
-- Residual never learns FordA (pipe ~14).  
-- LSTM in this matched setup never learns FordA.  
-- **Escrow + deplete** remains necessary for non-trivial accuracy on these waveforms.
+FordA is **noisy / seed-sensitive** for timing of takeoff; use it as a long-1D support check, not as the sole ranking oracle.
+
+**Unchanged across both real sets:** residual dual-load fails (majority or chance + fat pipe). Escrow is not cosmetic.
 
 ---
 
-## 5. What has been proven (in this lab)
+## 9. What has been proven (honest strength)
 
-Claims below are **supported by fen_lab runs**. Strength is stated honestly.
+### Strong (foundation + operators)
 
-### Strong
+1. **Residual dual-load fails** the foundation probes (joint distracted floor; exact recall 0).  
+2. **LSTM fails both foundation probes** under matched budget (exact **0.000**; distracted joint **~0.10**).  
+3. **Matching FEN write closes the cliff:** bag → dual-role ~1; slots → exact order ~1.  
+4. **Wrong topology is a floor, not a lag** (bag on exact; slot on distracted ID; soft+pool on exact).  
+5. **Delivery is read, not reinject** (exp04).  
+6. On real 1D, residual stays majority/chance where FEN learns — escrow still matters outside pure toys.
 
-1. **Dual-state + depletion beats residual dual-load** on dual-role synthetic tasks and on both real 1D sets (residual majority/chance + fat pipe).  
-2. **Archive must be readable without living in the pipe** — mid/query **concat read** works; **every-step reinject** bloats pipe and hurts final dual-role (exp04).  
-3. **Write/read topology must match the task**  
-   - bag ↔ dual-role / set facts  
-   - hard write and/or slot readout ↔ ordered lists  
-   - soft tape under pool is **not** an order fix (exp02–03).  
-4. **On real 1D classification, FEN-style escrow is not a cosmetic residual** — residual fails both MIT-BIH (majority) and FordA (chance) under matched budgets.
+### Medium
 
-### Medium (directionally clear, not multi-seed sealed)
+7. Channel-roll is a strong **waveform** write under fixed budgets; bag/hard catch up on FordA with more epochs.  
+8. Hybrid bag+ordered path can hold **both** synthetic probes.  
+9. On MIT-BIH classification, LSTM can look late-competitive — **do not** import that language into foundation claims.
 
-5. **Channel-roll is a strong 1D write** for waveforms under fixed budgets (best on MIT-BIH pilot and both FordA runs).  
-6. **Bag is competitive on FordA if trained long enough** (0.59 @20 ep → 0.85 @40 ep, seed 2) — pilot epoch budget was misleading.  
-7. **Hard+bag** is a lean middle on real data (not the synthetic “hard solves order under pool” story when the head is a class pool).  
-8. **LSTM is task-dependent** — useful late on MIT-BIH; near useless on FordA here. Treat as speed/control baseline, not scientific ceiling.
+### Not proven
 
-### Not proven (do not overclaim)
-
-- Universal SOTA across vision / language / all UCR sets  
-- Multi-seed statistical ranking of bag vs hard vs roll  
-- That roll is the **only** viable write on long 1D (false after 40 ep FordA)  
-- That bag alone is always enough on long 1D (needs budget; roll still edged it)  
+- Universal SOTA across domains  
+- Multi-seed sealed ranking of bag vs roll on all UCR sets  
+- Roll as a proven exact-5 solver **in this lab’s budgets** (stayed ~0 exact here)  
 - Soft tape as a general replacement for hard slots  
 
 ---
 
-## 6. Current architecture default
+## 10. Practical defaults after this path
 
 ```text
 ALWAYS
-  residual propose → gate → D → deplete (h ← f − D) → write escrow
-  deliver: head([h, arch]) at query/final   # no every-step reinject
+  propose → gate → D → deplete → write E
+  deliver head([h, arch]) at query/final   # no every-step reinject
 
-WRITE (topology-conditioned)
-  bag          — dual-role, static facts, set-like context
-  hard pointer — ordered multi-token / list labels (esp. + slot read)
-  channel-roll — long 1D sensors / waveforms when sample efficiency matters
-                 (best practical 1D default after exp05 pilots)
-
-READ
-  pool / concat  — classification
-  slot-aligned   — ordered multi-token outputs
-  mid-read       — when the task queries archive mid-sequence
+BY TASK
+  dual-role / set facts     → fen_bag
+  exact ordered lists       → fen_slot / hard write (+ slot read if soft)
+  both foundation probes    → hybrid bag + ordered path
+  long 1D sensors (real)    → fen_roll often best; bag/hard valid with budget
 ```
 
-**Practical 1D classification default after exp05:**  
-prefer **`fen_roll`** for speed-to-good-acc; **`fen_bag` / `fen_hard_bag`** remain valid with longer training and for dual-role / lean-pipe stories.
-
-**Practical dual-role / synthetic default:**  
-**`fen_bag`** (+ hard/slot when order is the task).
+**Do not say:** “LSTM competes with FEN.”  
+**Say:** “LSTM fails the foundation dual-role and exact-order probes; on some real classification tasks final acc can look closer — that is a different regime.”
 
 ---
 
-## 7. Next direction
+## 11. Experiment index (how to run)
 
-The **science claim** (escrow + deplete + correct delivery) is strong enough to freeze as the core.
+1. Colab → **GPU**  
+2. Paste entire file from [`fen_lab/`](fen_lab/) → Run  
+3. Toggle `FAST_MODE` when present  
 
-What is still open is **narrow**: write ranking under a **fair, multi-seed budget**.
+Deps: torch + numpy (01–04, 01b); + pandas for 05 (auto-download).
 
-### Proposed exp06 — write bake-off (then stop ranking)
+| Exp | File | Role in the journey |
+|-----|------|---------------------|
+| **01** | [`exp01_baseline_dual_task.py`](fen_lab/exp01_baseline_dual_task.py) | FEN family on foundation probes |
+| **01b** | [`exp01b_lstm_baseline.py`](fen_lab/exp01b_lstm_baseline.py) | **LSTM + residual + bag + slot** on the same probes |
+| **02** | [`exp02_ode_fen_order_ablation.py`](fen_lab/exp02_ode_fen_order_ablation.py) | Soft-tape order: readout is the fix |
+| **03** | [`exp03_write_vs_readout.py`](fen_lab/exp03_write_vs_readout.py) | Write × read grid; hybrid both tasks |
+| **04** | [`exp04_mid_deliver.py`](fen_lab/exp04_mid_deliver.py) | Mid-read vs reinject |
+| **05** | [`exp05_real_data.py`](fen_lab/exp05_real_data.py) | MIT-BIH (real transfer) |
+| **05b** | [`exp05_forda.py`](fen_lab/exp05_forda.py) | FordA (long 1D transfer) |
 
-| Knob | Setting |
-|------|---------|
-| Models | `fen_bag`, `fen_hard_bag`, `fen_roll` **only** |
-| Datasets | FordA + MIT-BIH (existing loaders) |
-| Seeds | `[1, 2, 3]` |
-| Epochs | FordA **40**, MIT-BIH **15–20** (fixed) |
-| Skip | residual, lstm (already dead / secondary) |
+### Next (optional)
 
-**Decision rule**
-
-```text
-if roll mean − bag mean ≥ ~2–3 pts on BOTH datasets:
-    default 1D write = roll; bag stays dual-role default
-elif gaps small or swap by dataset:
-    freeze as a menu, not a single universal write
-```
-
-Then:
-
-1. **Freeze a small `fen_core` API** — named write modes `bag | hard | roll`, shared deplete + concat deliver.  
-2. **Do not** open a new dataset until that freeze exists — more benchmarks expand the surface without sealing the ranking.  
-3. Optional later: one extra domain **after** freeze, as a transfer check — not as another open-ended lab.
-
-No new dataset is required to settle the remaining write question.
+Multi-seed write bake-off on real 1D (`bag` / `hard` / `roll` only), then freeze a small `fen_core` API.  
+No new dataset is required to keep the **foundation** claim honest — that claim already rests on §5.
 
 ---
 
-## 8. File map
+## 12. File map
 
 ```text
-fen_lab/                              ← active experiments (paste into Colab)
+fen_lab/
   exp01_baseline_dual_task.py
+  exp01b_lstm_baseline.py         ← foundation controls incl. LSTM
   exp02_ode_fen_order_ablation.py
   exp03_write_vs_readout.py
   exp04_mid_deliver.py
-  exp05_real_data.py                  ← MIT-BIH (FordA optional)
-  exp05_forda.py                      ← FordA-only longer re-run
-  README.md                           ← short pointer to this document
+  exp05_real_data.py
+  exp05_forda.py
+  README.md                       ← short pointer here
 
-history/                              ← archived early work only
-  README.md
-  experiments/  experiments2/  experiments_h100/  plots/
-  legacy_research_report.md
+history/                          ← archived early work only
 ```
 
 ---
 
-## 9. One-line summary
+## 13. One-line summary
 
-**FEN, in this lab, is a dual-stream residual that absorbs resolved features into an external escrow and subtracts them from the active pipe — like the intestine clearing nutrients into the bloodstream — so long active computation does not have to carry every committed fact inside the same tensor.**
+**FEN absorbs resolved features into an external escrow and subtracts them from the active pipe — like the intestine clearing nutrients into the bloodstream — so long active computation does not have to carry every committed fact in one state.**
 
-Synthetic toys proved **when** bag vs hard vs slot matter and that **delivery is read-not-reinject**.  
-Real ECG and FordA proved **escrow is necessary**; **which write wins** is topology- and budget-sensitive, with **roll** currently the best practical 1D default and **bag/hard** still in the game when trained long enough.
+On the synthetic probes built for that claim, **residual and LSTM sit at the floor**; **bag FEN** solves dual-role distraction; **slot FEN** solves exact ordered recall; hybrids and correct delivery rules extend the operator set. Real 1D data supports that escrow matters, with write algebra still topology- and budget-sensitive.
 
 ---
 
-*Document status: reflects fen_lab through exp05b FordA seed=2 / 40 ep. Update when exp06 (or a freeze) lands.*
+*Document status: fen_lab through foundation LSTM comparison (01b), synthetic freeze (01–04), real pilots (05 / 05b). Narrative ordered by reasoning journey, not by “latest exp number.”*
