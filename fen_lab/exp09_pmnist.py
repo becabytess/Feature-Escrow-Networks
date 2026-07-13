@@ -1,35 +1,34 @@
 # ==============================================================================
-# fen_lab / EXP09 — Sequential MNIST (sMNIST) hard-bench variant sweep
+# fen_lab / EXP09 — Permuted MNIST (pMNIST): is roll/hybrid using *local* structure?
 # ==============================================================================
-# Why this task
-#   Foundation probes (distracted / recall) are at ceiling for many FEN variants —
-#   bad for ranking. sMNIST is a long pixel stream with real headroom where LSTM
-#   is competitive. If all FENs ≈ LSTM, the task/protocol still may be wrong;
-#   if gaps open, we can rank write/delivery choices for hard seq vision.
+# Hypothesis (from sMNIST exp08)
+#   Early commits into escrow may store *local* decisions along the raster scan
+#   (weak CNN-like: local features → global board → final head). Channel-roll /
+#   hybrid preserve ordered structure in E; bag is commutative and slower.
 #
-# Protocol (matches older FEN/sMNIST style)
-#   MNIST → bilinear resize 28→20 → sequence T=400, C=1
-#   Stratified subset: 1500 train / 200 test per digit (15k / 2k)
-#   ~100k params, AdamW, GPU preload, CUDA graphs
+#   If that is right, destroying spatial locality along the sequence should
+#   shrink roll/hybrid's edge over bag (and crush early-epoch gaps).
 #
-# Models
-#   residual         residual tanh RNN, no escrow
-#   fen_bag          deplete + bag + head([h,E])
-#   fen_copy         bag write but NO deplete (h=f) — is subtraction load-bearing?
-#   fen_hard_bag     hard pointer tape + bag
-#   fen_roll         channel-roll escrow
-#   fen_hybrid       bag + roll dual vault
-#   fen_reinject     bag + every-step E→h (pathology control)
-#   fen_2pass_cold   bag, discrete read between two passes
-#   lstm             1-layer nn.LSTM baseline
+# Test: pMNIST = same pixels as exp08 sMNIST, but a *fixed* random permutation
+#   is applied to the T=400 order (same perm for all samples train+test).
+#   Adjacent timesteps are no longer spatial neighbors.
 #
-# Data sources (first hit wins)
-#   1) /kaggle/input/**  mnist_train.csv + mnist_test.csv
-#   2) kagglehub  oddrationale/mnist-in-csv
-#   3) torchvision MNIST (./data)
+# Predictions
+#   H1: roll/hybrid peak and *especially ep1–ep2* drop vs exp08 sMNIST.
+#   H2: gap (roll − bag) shrinks vs sMNIST (local-structure story).
+#   H3: if roll still dominates pMNIST the same way, advantage is more "generic
+#       long ordered memory" than "local CNN-like deposits".
+#
+# Protocol (identical to exp08 except permutation)
+#   20×20 → T=400, C=1; 1500/200 per digit; ~100k params; 10 ep FAST
+#   PERM_SEED=123 fixed — report it so runs are comparable
+#
+# Models (lean set focused on the hypothesis + honesty)
+#   residual | fen_bag | fen_copy | fen_roll | fen_hybrid | lstm_1L | lstm_3L
+#
+# Compare to exp08 SUMMARY (same budget). Report peak AND ep1/ep2.
 #
 # Kaggle/Colab: paste whole file → GPU → Run.
-# Deps: torch, numpy; optional pandas, kagglehub, torchvision.
 # ==============================================================================
 
 import os
@@ -47,7 +46,7 @@ FAST_MODE = True
 
 if FAST_MODE:
     SEEDS = [1]
-    EPOCHS = 20
+    EPOCHS = 10  # match exp08 FEN sweep length for fair sMNIST vs pMNIST
     PRINT_EVERY = 2
     TARGET_PARAMS = 100000
 else:
@@ -61,6 +60,7 @@ SEQ_LEN = IMG_SIZE * IMG_SIZE
 TRAIN_PER_CLASS = 1500
 TEST_PER_CLASS = 200
 NUM_CLASSES = 10
+PERM_SEED = 123  # fixed permutation of the sequence axis
 
 BATCH_SIZE = 128
 LR = 1e-3
@@ -75,16 +75,15 @@ AUTO_MATCH_PARAMS = True
 USE_CUDA_GRAPHS = True
 CUDA_GRAPH_WARMUP_STEPS = 3
 
+# Lean set: locality hypothesis + LSTM honesty (1L as exp08, 3L as best from 08b)
 MODEL_ORDER = [
     "residual",
     "fen_bag",
     "fen_copy",
-    "fen_hard_bag",
     "fen_roll",
     "fen_hybrid",
-    "fen_reinject",
-    "fen_2pass_cold",
     "lstm",
+    "lstm_3L",
 ]
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -96,13 +95,13 @@ else:
     USE_CUDA_GRAPHS = False
 
 print(
-    f"Device: {DEVICE} | sMNIST | FAST_MODE={FAST_MODE} | "
+    f"Device: {DEVICE} | pMNIST | FAST_MODE={FAST_MODE} | "
     f"T={SEQ_LEN} | EPOCHS={EPOCHS} | BATCH={BATCH_SIZE} | "
-    f"CUDA_GRAPHS={USE_CUDA_GRAPHS}"
+    f"PERM_SEED={PERM_SEED} | CUDA_GRAPHS={USE_CUDA_GRAPHS}"
 )
 print(
-    "EXP09 — Hard-bench FEN variant sweep on sequential MNIST "
-    "(rank writes under headroom; LSTM is the honesty check)"
+    "EXP09 — Permuted MNIST: does roll/hybrid rely on local raster structure?\n"
+    "  Compare peak + ep1/ep2 to exp08 sMNIST (same protocol, no perm)."
 )
 print(f"Models: {MODEL_ORDER}")
 
@@ -190,10 +189,10 @@ def _load_mnist_arrays():
         ) from e
 
 
-def make_smnist():
+def make_pmnist(perm_seed: int = PERM_SEED):
+    """Same as exp08 sMNIST, then permute the sequence axis with a fixed order."""
     x_tr, y_tr, x_te, y_te = _load_mnist_arrays()
 
-    # (N, 1, 28, 28) → resize → (N, T, 1)
     x_tr_t = torch.tensor(x_tr).view(-1, 1, 28, 28)
     x_te_t = torch.tensor(x_te).view(-1, 1, 28, 28)
     print(f"Downsampling 28×28 → {IMG_SIZE}×{IMG_SIZE} (T={SEQ_LEN})...")
@@ -205,6 +204,16 @@ def make_smnist():
     )
     x_tr_seq = x_tr_t.squeeze(1).reshape(-1, SEQ_LEN, 1).numpy()
     x_te_seq = x_te_t.squeeze(1).reshape(-1, SEQ_LEN, 1).numpy()
+
+    # Fixed permutation of time indices (destroys spatial locality along the scan)
+    perm_rng = np.random.default_rng(perm_seed)
+    perm = perm_rng.permutation(SEQ_LEN)
+    print(
+        f"Applying fixed sequence permutation PERM_SEED={perm_seed} "
+        f"(first 8 indices: {perm[:8].tolist()}...)"
+    )
+    x_tr_seq = x_tr_seq[:, perm, :]
+    x_te_seq = x_te_seq[:, perm, :]
 
     rng = np.random.default_rng(42)
     train_idx, test_idx = [], []
@@ -235,15 +244,16 @@ def make_smnist():
     y_te = torch.tensor(y_te, dtype=torch.long, device=DEVICE)
 
     meta = {
-        "name": "smnist",
+        "name": "pmnist",
         "input_dim": 1,
         "num_classes": NUM_CLASSES,
         "seq_len": SEQ_LEN,
         "n_train": int(x_tr.shape[0]),
         "n_test": int(x_te.shape[0]),
+        "perm_seed": perm_seed,
     }
     print(
-        f"sMNIST ready on {DEVICE}: train={tuple(x_tr.shape)} test={tuple(x_te.shape)} "
+        f"pMNIST ready on {DEVICE}: train={tuple(x_tr.shape)} test={tuple(x_te.shape)} "
         f"classes={NUM_CLASSES}  subset={TRAIN_PER_CLASS}/class train, "
         f"{TEST_PER_CLASS}/class test"
     )
@@ -499,7 +509,8 @@ MODEL_SPECS = {
     "fen_hybrid": dict(kind="fen", write_mode="hybrid"),
     "fen_reinject": dict(kind="fen", write_mode="reinject"),
     "fen_2pass_cold": dict(kind="fen", write_mode="twopass_cold"),
-    "lstm": dict(kind="lstm"),
+    "lstm": dict(kind="lstm", num_layers=1),
+    "lstm_3L": dict(kind="lstm", num_layers=3),
 }
 
 
@@ -508,7 +519,9 @@ def build(name, input_dim, num_classes, hidden_dim):
     if spec["kind"] == "residual":
         return ResidualRNN(input_dim, hidden_dim, num_classes)
     if spec["kind"] == "lstm":
-        return LSTMBaseline(input_dim, hidden_dim, num_classes)
+        return LSTMBaseline(
+            input_dim, hidden_dim, num_classes, num_layers=spec.get("num_layers", 1)
+        )
     return SeqFEN(
         input_dim, hidden_dim, num_classes, write_mode=spec["write_mode"], K=TAPE_K
     )
@@ -673,6 +686,7 @@ def train_one(name, X_train, y_train, X_test, y_test, meta, seed, epochs, batch_
             )
 
     best_acc, best_ep, best_snap = -1.0, 0, None
+    history = []
     t0 = time.time()
 
     for ep in range(1, epochs + 1):
@@ -691,6 +705,7 @@ def train_one(name, X_train, y_train, X_test, y_test, meta, seed, epochs, batch_
                 opt.step()
 
         val = evaluate(model, X_test, y_test, batch_size)
+        history.append(val["acc"])
         if val["acc"] > best_acc:
             best_acc, best_ep, best_snap = val["acc"], ep, dict(val)
 
@@ -702,9 +717,12 @@ def train_one(name, X_train, y_train, X_test, y_test, meta, seed, epochs, batch_
             )
 
     elapsed = time.time() - t0
+    ep1 = history[0]
+    ep2 = history[1] if len(history) > 1 else float("nan")
     print(
         f"  >> best acc={best_acc:.3f}  @ep{best_ep}  t={elapsed:.1f}s  "
-        f"pipe={best_snap['pipe']:.2f}  graph={'yes' if graph else 'no'}"
+        f"ep1={ep1:.3f}  ep2={ep2:.3f}  pipe={best_snap['pipe']:.2f}  "
+        f"graph={'yes' if graph else 'no'}"
     )
     return {
         "name": name,
@@ -715,17 +733,22 @@ def train_one(name, X_train, y_train, X_test, y_test, meta, seed, epochs, batch_
         "params": n_params,
         "hidden": h,
         "time": elapsed,
+        "ep1": ep1,
+        "ep2": ep2,
+        "last": history[-1],
     }
 
 
 def main():
     print(
-        f"TARGET_PARAMS≈{TARGET_PARAMS} | EPOCHS={EPOCHS} | SEEDS={SEEDS}\n"
-        "Chance@10 ≈ 0.10. If all FEN ≈ LSTM, hard-task ranking is weak; "
-        "if gaps open, write/delivery choices matter under headroom."
+        f"TARGET_PARAMS≈{TARGET_PARAMS} | EPOCHS={EPOCHS} | SEEDS={SEEDS} | "
+        f"PERM_SEED={PERM_SEED}\n"
+        "exp08 sMNIST refs @10ep: hybrid≈0.91 ep1≈0.67 | roll≈0.88 ep1≈0.64 | "
+        "bag≈0.66 ep1≈0.24 | lstm1L≈0.11\n"
+        "If roll/hybrid ep1–ep2 collapse toward bag, local-raster hypothesis gains support."
     )
 
-    X_tr, y_tr, X_te, y_te, meta = make_smnist()
+    X_tr, y_tr, X_te, y_te, meta = make_pmnist(PERM_SEED)
     bs = BATCH_SIZE
     n_tr = (X_tr.shape[0] // bs) * bs
     n_te = (X_te.shape[0] // bs) * bs
@@ -743,39 +766,46 @@ def main():
             )
             by_model[name].append(row)
 
-    print("\n" + "-" * 78)
+    print("\n" + "-" * 88)
     print(
-        f"SUMMARY  smnist  T={meta['seq_len']}  seeds={SEEDS}  "
-        f"target_params≈{TARGET_PARAMS}"
+        f"SUMMARY  pmnist  T={meta['seq_len']}  perm_seed={meta['perm_seed']}  "
+        f"seeds={SEEDS}  target_params≈{TARGET_PARAMS}"
     )
-    print("-" * 78)
+    print("-" * 88)
     print(
-        f"{'model':<16} {'acc':>7} {'±':>6} {'to_best':>8} "
-        f"{'pipe':>7} {'params':>8} {'time_s':>8}"
+        f"{'model':<14} {'acc':>7} {'ep1':>6} {'ep2':>6} {'last':>6} "
+        f"{'to_best':>8} {'pipe':>7} {'params':>8}"
     )
     for name in MODEL_ORDER:
         rows = by_model[name]
-        accs = np.array([r["acc"] for r in rows], dtype=np.float64)
-        eps = np.array([r["best_ep"] for r in rows], dtype=np.float64)
-        pipes = np.array([r["pipe"] for r in rows], dtype=np.float64)
-        times = np.array([r["time"] for r in rows], dtype=np.float64)
+        acc = np.mean([r["acc"] for r in rows])
+        ep1 = np.mean([r["ep1"] for r in rows])
+        ep2 = np.mean([r["ep2"] for r in rows])
+        last = np.mean([r["last"] for r in rows])
+        epb = np.mean([r["best_ep"] for r in rows])
+        pipe = np.mean([r["pipe"] for r in rows])
         params = rows[0]["params"]
         print(
-            f"{name:<16} {accs.mean():7.3f} {accs.std():6.3f} "
-            f"{eps.mean():8.1f} {pipes.mean():7.2f} {params:8d} {times.mean():8.1f}"
+            f"{name:<14} {acc:7.3f} {ep1:6.3f} {ep2:6.3f} {last:6.3f} "
+            f"{epb:8.1f} {pipe:7.2f} {params:8d}"
         )
-    print("-" * 78)
+    print("-" * 88)
+    # gaps if all present
+    if "fen_roll" in by_model and "fen_bag" in by_model:
+        dr = by_model["fen_roll"][0]["acc"] - by_model["fen_bag"][0]["acc"]
+        dr1 = by_model["fen_roll"][0]["ep1"] - by_model["fen_bag"][0]["ep1"]
+        print(
+            f"Gaps (this run): roll−bag peak={dr:+.3f}  roll−bag ep1={dr1:+.3f}\n"
+            f"exp08 sMNIST refs: roll−bag peak≈+0.22  roll−bag ep1≈+0.40"
+        )
     print(
-        "How to read:\n"
-        "  • residual fat pipe / low acc → dual-load still hurts\n"
-        "  • fen_* vs lstm: if tied, ranking writes is weak on this protocol\n"
-        "  • fen_roll vs fen_bag: ordered-scan bias under headroom?\n"
-        "  • fen_copy: deplete off — does subtraction matter here?\n"
-        "  • fen_reinject: expect fatter pipe; acc may or may not look OK\n"
-        "  • fen_2pass_cold: discrete multi-pass on a hard task\n"
-        "  Curves matter: to_best epoch + final plateau."
+        "How to read vs exp08 sMNIST:\n"
+        "  • Local-structure H: roll/hybrid *early* edge shrinks a lot under permutation\n"
+        "  • Generic long-memory H: roll still crushes bag on peak and ep1–ep2\n"
+        "  • Report both peak and ep1/ep2 — early is the main locality probe\n"
+        "  • lstm_3L vs roll: efficiency story under scrambled order"
     )
-    print("DONE — paste this SUMMARY back for scoring.")
+    print("DONE — paste this SUMMARY (+ note ep1/ep2) back for scoring.")
     return by_model
 
 

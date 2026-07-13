@@ -1,5 +1,5 @@
 # ==============================================================================
-# fen_lab / EXP07 — Multi-pass read of escrow (discrete read events)
+# fen_lab / EXP06 — Multi-pass read of escrow (discrete read events)
 # ==============================================================================
 # Motivation
 #   exp04: every-step reinject of E → h is bad (pipe bloat, dual-role dies).
@@ -77,7 +77,7 @@ print(
     f"EPOCHS={EPOCHS} | Models={MODEL_ORDER}"
 )
 print(
-    "EXP07 — Multi-pass escrow read on distracted counting "
+    "EXP06 — Multi-pass escrow read on distracted counting "
     "(discrete read between passes vs every-step reinject)"
 )
 

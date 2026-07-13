@@ -1,5 +1,5 @@
 # ==============================================================================
-# fen_lab / EXP08 — Shared escrow as a communication board (dual experts)
+# fen_lab / EXP07 — Shared escrow as a communication board (dual experts)
 # ==============================================================================
 # Claim under test
 #   Escrow is not only a private notebook for one RNN. It can act as a *shared
@@ -82,7 +82,7 @@ print(
     f"EPOCHS={EPOCHS}"
 )
 print(
-    "EXP08 — Shared-board dual experts on PARTITIONED distracted "
+    "EXP07 — Shared-board dual experts on PARTITIONED distracted "
     "(ID stream A | count stream B | shared E gateway)"
 )
 print(f"Models: {MODEL_ORDER}")

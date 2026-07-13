@@ -1,37 +1,39 @@
 # ==============================================================================
-# fen_lab / EXP10 — Permuted MNIST (pMNIST): is roll/hybrid using *local* structure?
+# fen_lab / EXP10 — Sequential CIFAR-100 (hard transfer after sMNIST / pMNIST)
 # ==============================================================================
-# Hypothesis (from sMNIST exp09)
-#   Early commits into escrow may store *local* decisions along the raster scan
-#   (weak CNN-like: local features → global board → final head). Channel-roll /
-#   hybrid preserve ordered structure in E; bag is commutative and slower.
+# Why this task
+#   Foundation + sMNIST + pMNIST froze the story:
+#     fen_roll = consistent default for long ordered classification
+#     early accuracy (ep1–ep2) = first-class ranking signal
+#     hybrid = raster peak specialist, weaker under non-raster order
+#   Digit streams are still sparse/simple. CIFAR-100 is richer (color, 100 classes).
 #
-#   If that is right, destroying spatial locality along the sequence should
-#   shrink roll/hybrid's edge over bag (and crush early-epoch gaps).
+# Question
+#   Do frozen fen_lab operators — especially fen_roll + final concat read —
+#   still win on peak AND early accuracy when the sequence is harder than MNIST?
 #
-# Test: pMNIST = same pixels as exp09 sMNIST, but a *fixed* random permutation
-#   is applied to the T=400 order (same perm for all samples train+test).
-#   Adjacent timesteps are no longer spatial neighbors.
+# Protocol
+#   CIFAR-100 fine labels (100 classes)
+#   INPUT_MODE:
+#     "patch" (primary) — 4×4 non-overlap patches → T=64, C=48
+#     "pixel" (optional) — raw raster → T=1024, C=3  (slow; legacy ~14% note)
+#   Subset: 150 train / 20 test per class (15k / 2k), same spirit as sMNIST
+#   ~100k params, AdamW, GPU preload, CUDA graphs
+#   Report peak + ep1 + ep2 + pipe (same as exp08/09)
 #
-# Predictions
-#   H1: roll/hybrid peak and *especially ep1–ep2* drop vs exp09 sMNIST.
-#   H2: gap (roll − bag) shrinks vs sMNIST (local-structure story).
-#   H3: if roll still dominates pMNIST the same way, advantage is more "generic
-#       long ordered memory" than "local CNN-like deposits".
+# Models (lean set — transfer of frozen story, not a new variant invent-a-thon)
+#   residual | fen_bag | fen_copy | fen_roll | fen_hybrid | lstm | lstm_3L
 #
-# Protocol (identical to exp09 except permutation)
-#   20×20 → T=400, C=1; 1500/200 per digit; ~100k params; 10 ep FAST
-#   PERM_SEED=123 fixed — report it so runs are comparable
-#
-# Models (lean set focused on the hypothesis + honesty)
-#   residual | fen_bag | fen_copy | fen_roll | fen_hybrid | lstm_1L | lstm_3L
-#
-# Compare to exp09 SUMMARY (same budget). Report peak AND ep1/ep2.
+# Chance floor = 0.01. History spatial-CNN CIFAR is NOT this experiment.
+# Old sequential pixel note (~14%): not fen_lab evidence; re-measure under freeze.
 #
 # Kaggle/Colab: paste whole file → GPU → Run.
+# Deps: torch, numpy. pickle in stdlib. Optional kagglehub for data fetch.
+# Data: Kaggle fedesoriano/cifar100 (or any CIFAR-100 Python train/test pickles).
 # ==============================================================================
 
 import os
+import pickle
 import random
 import time
 from collections import defaultdict
@@ -44,10 +46,15 @@ import torch.nn.functional as F
 # ------------------------------ CONFIG ----------------------------------------
 FAST_MODE = True
 
+# "patch" = primary stress test after sMNIST/pMNIST
+# "pixel" = long raw stream (T=1024); set only when you want the legacy protocol
+INPUT_MODE = "patch"  # "patch" | "pixel"
+PATCH_SIZE = 4  # only for patch → T = (32/P)^2, C = 3*P*P
+
 if FAST_MODE:
     SEEDS = [1]
-    EPOCHS = 10  # match exp09 FEN sweep length for fair sMNIST vs pMNIST
-    PRINT_EVERY = 2
+    EPOCHS = 15
+    PRINT_EVERY = 1
     TARGET_PARAMS = 100000
 else:
     SEEDS = [1, 2, 3]
@@ -55,15 +62,9 @@ else:
     PRINT_EVERY = 1
     TARGET_PARAMS = 100000
 
-IMG_SIZE = 20  # 20×20 → T=400
-SEQ_LEN = IMG_SIZE * IMG_SIZE
-TRAIN_PER_CLASS = 1500
-TEST_PER_CLASS = 200
-NUM_CLASSES = 10
-PERM_SEED = 123  # fixed permutation of the sequence axis
-
-BATCH_SIZE = 128
-LR = 1e-3
+# pixel T=1024 is heavy; patch T=64 can use larger batches
+BATCH_SIZE = 128 if INPUT_MODE == "pixel" else 256
+LR = 2e-3
 WEIGHT_DECAY = 1e-4
 GRAD_CLIP = 1.0
 HEAD_WIDTH = 128
@@ -72,10 +73,13 @@ EVENT_GATE_THRESH = 0.25
 MIN_H, MAX_H = 16, 256
 AUTO_MATCH_PARAMS = True
 
+TRAIN_PER_CLASS = 150
+TEST_PER_CLASS = 20
+NUM_CLASSES = 100
+
 USE_CUDA_GRAPHS = True
 CUDA_GRAPH_WARMUP_STEPS = 3
 
-# Lean set: locality hypothesis + LSTM honesty (1L as exp09, 3L as best from 09b)
 MODEL_ORDER = [
     "residual",
     "fen_bag",
@@ -95,13 +99,14 @@ else:
     USE_CUDA_GRAPHS = False
 
 print(
-    f"Device: {DEVICE} | pMNIST | FAST_MODE={FAST_MODE} | "
-    f"T={SEQ_LEN} | EPOCHS={EPOCHS} | BATCH={BATCH_SIZE} | "
-    f"PERM_SEED={PERM_SEED} | CUDA_GRAPHS={USE_CUDA_GRAPHS}"
+    f"Device: {DEVICE} | CIFAR-100 seq | INPUT_MODE={INPUT_MODE} | "
+    f"FAST_MODE={FAST_MODE} | EPOCHS={EPOCHS} | BATCH={BATCH_SIZE} | "
+    f"CUDA_GRAPHS={USE_CUDA_GRAPHS}"
 )
 print(
-    "EXP10 — Permuted MNIST: does roll/hybrid rely on local raster structure?\n"
-    "  Compare peak + ep1/ep2 to exp09 sMNIST (same protocol, no perm)."
+    "EXP10 — Sequential CIFAR-100: does fen_roll transfer beyond digit streams?\n"
+    "  Compare peak + ep1/ep2 (same ranking signal as exp08/09).\n"
+    f"  Chance floor = 1/{NUM_CLASSES} = {1.0 / NUM_CLASSES:.3f}"
 )
 print(f"Models: {MODEL_ORDER}")
 
@@ -120,121 +125,133 @@ def count_params(model: nn.Module) -> int:
 
 
 # ------------------------------ DATA ------------------------------------------
-def _load_mnist_arrays():
-    """Return x_train (N,784), y_train, x_test, y_test as float32 [0,1] / int64."""
+def unpickle(file_path):
+    with open(file_path, "rb") as f:
+        return pickle.load(f, encoding="bytes")
 
-    # 1) Kaggle input CSVs
+
+def find_cifar100_pickles():
+    """Locate train/test pickles under /kaggle/input, kagglehub, or local dirs."""
     kaggle_root = "/kaggle/input"
     if os.path.isdir(kaggle_root):
-        print("Searching /kaggle/input for mnist_*.csv ...")
-        train_csv = test_csv = None
+        print("Locating CIFAR-100 under /kaggle/input...")
         for root, _dirs, files in os.walk(kaggle_root):
-            fl = {f.lower(): os.path.join(root, f) for f in files}
-            # common names
-            for tk in ("mnist_train.csv", "train.csv"):
-                if tk in fl or tk.replace(".csv", "") + ".csv" in [f.lower() for f in files]:
-                    pass
-            lower_map = {f.lower(): os.path.join(root, f) for f in files}
-            if "mnist_train.csv" in lower_map and "mnist_test.csv" in lower_map:
-                train_csv = lower_map["mnist_train.csv"]
-                test_csv = lower_map["mnist_test.csv"]
-                break
-        if train_csv and test_csv:
-            import pandas as pd
+            if "train" in files and "test" in files:
+                train_p = os.path.join(root, "train")
+                test_p = os.path.join(root, "test")
+                if os.path.isfile(train_p) and os.path.isfile(test_p):
+                    return train_p, test_p
 
-            print(f"Loading Kaggle CSVs:\n  {train_csv}\n  {test_csv}")
-            tr = pd.read_csv(train_csv)
-            te = pd.read_csv(test_csv)
-            # column name may be label or Label
-            lab = "label" if "label" in tr.columns else tr.columns[0]
-            y_tr = tr[lab].values.astype(np.int64)
-            y_te = te[lab].values.astype(np.int64)
-            x_tr = tr.drop(columns=[lab]).values.astype(np.float32) / 255.0
-            x_te = te.drop(columns=[lab]).values.astype(np.float32) / 255.0
-            return x_tr, y_tr, x_te, y_te
-
-    # 2) kagglehub
     try:
         import kagglehub
-        import pandas as pd
 
-        print("Downloading MNIST via kagglehub (oddrationale/mnist-in-csv)...")
-        path = kagglehub.dataset_download("oddrationale/mnist-in-csv")
-        tr = pd.read_csv(os.path.join(path, "mnist_train.csv"))
-        te = pd.read_csv(os.path.join(path, "mnist_test.csv"))
-        y_tr = tr["label"].values.astype(np.int64)
-        y_te = te["label"].values.astype(np.int64)
-        x_tr = tr.drop(columns=["label"]).values.astype(np.float32) / 255.0
-        x_te = te.drop(columns=["label"]).values.astype(np.float32) / 255.0
-        return x_tr, y_tr, x_te, y_te
+        print("Downloading CIFAR-100 via kagglehub (fedesoriano/cifar100)...")
+        path = kagglehub.dataset_download("fedesoriano/cifar100")
+        for root, _dirs, files in os.walk(path):
+            if "train" in files and "test" in files:
+                return os.path.join(root, "train"), os.path.join(root, "test")
     except Exception as e:
         print(f"  kagglehub path failed ({type(e).__name__}: {e})")
 
-    # 3) torchvision
-    try:
-        from torchvision import datasets
+    for d in (
+        "./data/cifar-100-python",
+        "./cifar-100-python",
+        "./data",
+        os.path.expanduser("~/cifar-100-python"),
+    ):
+        train_p = os.path.join(d, "train")
+        test_p = os.path.join(d, "test")
+        if os.path.isfile(train_p) and os.path.isfile(test_p):
+            return train_p, test_p
 
-        print("Loading MNIST via torchvision → ./data ...")
-        tr = datasets.MNIST(root="./data", train=True, download=True)
-        te = datasets.MNIST(root="./data", train=False, download=True)
-        x_tr = tr.data.numpy().reshape(-1, 784).astype(np.float32) / 255.0
-        y_tr = tr.targets.numpy().astype(np.int64)
-        x_te = te.data.numpy().reshape(-1, 784).astype(np.float32) / 255.0
-        y_te = te.targets.numpy().astype(np.int64)
-        return x_tr, y_tr, x_te, y_te
-    except Exception as e:
-        raise FileNotFoundError(
-            "Could not load MNIST. On Kaggle: add mnist-in-csv dataset. "
-            f"Last error: {e}"
-        ) from e
-
-
-def make_pmnist(perm_seed: int = PERM_SEED):
-    """Same as exp09 sMNIST, then permute the sequence axis with a fixed order."""
-    x_tr, y_tr, x_te, y_te = _load_mnist_arrays()
-
-    x_tr_t = torch.tensor(x_tr).view(-1, 1, 28, 28)
-    x_te_t = torch.tensor(x_te).view(-1, 1, 28, 28)
-    print(f"Downsampling 28×28 → {IMG_SIZE}×{IMG_SIZE} (T={SEQ_LEN})...")
-    x_tr_t = F.interpolate(
-        x_tr_t, size=(IMG_SIZE, IMG_SIZE), mode="bilinear", align_corners=False
+    raise FileNotFoundError(
+        "Could not find CIFAR-100 'train' and 'test' pickles.\n"
+        "  Kaggle: Add dataset fedesoriano/cifar100 (Python version).\n"
+        "  Local: place pickles under ./data/cifar-100-python/."
     )
-    x_te_t = F.interpolate(
-        x_te_t, size=(IMG_SIZE, IMG_SIZE), mode="bilinear", align_corners=False
-    )
-    x_tr_seq = x_tr_t.squeeze(1).reshape(-1, SEQ_LEN, 1).numpy()
-    x_te_seq = x_te_t.squeeze(1).reshape(-1, SEQ_LEN, 1).numpy()
 
-    # Fixed permutation of time indices (destroys spatial locality along the scan)
-    perm_rng = np.random.default_rng(perm_seed)
-    perm = perm_rng.permutation(SEQ_LEN)
-    print(
-        f"Applying fixed sequence permutation PERM_SEED={perm_seed} "
-        f"(first 8 indices: {perm[:8].tolist()}...)"
-    )
-    x_tr_seq = x_tr_seq[:, perm, :]
-    x_te_seq = x_te_seq[:, perm, :]
+
+def _to_images(raw: np.ndarray) -> np.ndarray:
+    """(N, 3072) → (N, 3, 32, 32) float32 in [0,1]."""
+    x = raw.astype(np.float32) / 255.0
+    return x.reshape(-1, 3, 32, 32)
+
+
+def _images_to_sequence(imgs: np.ndarray, mode: str, patch: int) -> np.ndarray:
+    """
+    imgs: (N, 3, 32, 32)
+    pixel → (N, 1024, 3)
+    patch → (N, (32/P)^2, 3*P*P)
+    """
+    if mode == "pixel":
+        return imgs.reshape(imgs.shape[0], 3, 1024).transpose(0, 2, 1).copy()
+
+    if mode != "patch":
+        raise ValueError(mode)
+    if 32 % patch != 0:
+        raise ValueError(f"PATCH_SIZE={patch} must divide 32")
+
+    n, c, h, w = imgs.shape
+    ph = pw = patch
+    gh, gw = h // ph, w // pw
+    x = imgs.reshape(n, c, gh, ph, gw, pw)
+    x = x.transpose(0, 2, 4, 1, 3, 5)  # N, gh, gw, C, ph, pw
+    x = x.reshape(n, gh * gw, c * ph * pw)
+    return x.copy()
+
+
+def make_cifar100_seq(
+    input_mode: str = INPUT_MODE,
+    patch_size: int = PATCH_SIZE,
+    train_per_class: int = TRAIN_PER_CLASS,
+    test_per_class: int = TEST_PER_CLASS,
+):
+    train_file, test_file = find_cifar100_pickles()
+    print(f"Loading train from: {train_file}")
+    print(f"Loading test from:  {test_file}")
+
+    train_dict = unpickle(train_file)
+    test_dict = unpickle(test_file)
+
+    def _get(d, *keys):
+        for k in keys:
+            if k in d:
+                return d[k]
+        raise KeyError(keys)
+
+    x_train_raw = _get(train_dict, b"data", "data")
+    y_train = np.array(_get(train_dict, b"fine_labels", "fine_labels"), dtype=np.int64)
+    x_test_raw = _get(test_dict, b"data", "data")
+    y_test = np.array(_get(test_dict, b"fine_labels", "fine_labels"), dtype=np.int64)
+
+    imgs_tr = _to_images(x_train_raw)
+    imgs_te = _to_images(x_test_raw)
 
     rng = np.random.default_rng(42)
     train_idx, test_idx = [], []
-    for d in range(10):
-        train_idx.extend(
-            rng.choice(np.where(y_tr == d)[0], TRAIN_PER_CLASS, replace=False).tolist()
-        )
-        test_idx.extend(
-            rng.choice(np.where(y_te == d)[0], TEST_PER_CLASS, replace=False).tolist()
-        )
-    train_idx = np.array(train_idx)
-    test_idx = np.array(test_idx)
-    rng.shuffle(train_idx)
-    rng.shuffle(test_idx)
+    for label in range(NUM_CLASSES):
+        tr = np.where(y_train == label)[0]
+        te = np.where(y_test == label)[0]
+        train_idx.extend(rng.choice(tr, train_per_class, replace=False).tolist())
+        test_idx.extend(rng.choice(te, test_per_class, replace=False).tolist())
 
-    x_tr = x_tr_seq[train_idx]
-    y_tr = y_tr[train_idx]
-    x_te = x_te_seq[test_idx]
-    y_te = y_te[test_idx]
+    imgs_tr = imgs_tr[train_idx]
+    y_tr = y_train[train_idx]
+    imgs_te = imgs_te[test_idx]
+    y_te = y_test[test_idx]
 
-    mean, std = x_tr.mean(), x_tr.std()
+    # shuffle within train/test (keep class balance via construction)
+    tr_perm = rng.permutation(len(y_tr))
+    te_perm = rng.permutation(len(y_te))
+    imgs_tr, y_tr = imgs_tr[tr_perm], y_tr[tr_perm]
+    imgs_te, y_te = imgs_te[te_perm], y_te[te_perm]
+
+    x_tr = _images_to_sequence(imgs_tr, input_mode, patch_size)
+    x_te = _images_to_sequence(imgs_te, input_mode, patch_size)
+
+    flat = x_tr.reshape(-1, x_tr.shape[-1])
+    mean = flat.mean(axis=0)
+    std = flat.std(axis=0)
     x_tr = (x_tr - mean) / (std + 1e-8)
     x_te = (x_te - mean) / (std + 1e-8)
 
@@ -244,18 +261,23 @@ def make_pmnist(perm_seed: int = PERM_SEED):
     y_te = torch.tensor(y_te, dtype=torch.long, device=DEVICE)
 
     meta = {
-        "name": "pmnist",
-        "input_dim": 1,
+        "name": "cifar100",
+        "input_mode": input_mode,
+        "input_dim": int(x_tr.shape[-1]),
         "num_classes": NUM_CLASSES,
-        "seq_len": SEQ_LEN,
+        "seq_len": int(x_tr.shape[1]),
         "n_train": int(x_tr.shape[0]),
         "n_test": int(x_te.shape[0]),
-        "perm_seed": perm_seed,
+        "patch_size": patch_size if input_mode == "patch" else None,
     }
     print(
-        f"pMNIST ready on {DEVICE}: train={tuple(x_tr.shape)} test={tuple(x_te.shape)} "
-        f"classes={NUM_CLASSES}  subset={TRAIN_PER_CLASS}/class train, "
-        f"{TEST_PER_CLASS}/class test"
+        f"CIFAR-100 seq ready on {DEVICE}: train={tuple(x_tr.shape)} "
+        f"test={tuple(x_te.shape)} mode={input_mode} "
+        f"T={meta['seq_len']} C={meta['input_dim']} classes={NUM_CLASSES}"
+    )
+    print(
+        f"  subset: {train_per_class}/class train, {test_per_class}/class test "
+        f"→ n_train={meta['n_train']} n_test={meta['n_test']}"
     )
     return x_tr, y_tr, x_te, y_te, meta
 
@@ -310,32 +332,20 @@ class ResidualRNN(nn.Module):
 
 class SeqFEN(nn.Module):
     """
-    write_mode:
-      bag | hard | roll | hybrid | reinject | copy | twopass_cold
-    copy: write bag but h = f (no deplete)
-    reinject: deplete + write, then h += tanh(rj(E)) every step
-    twopass_cold: two scans, discrete read c between passes
+    Frozen FEN operators (same as exp08/09).
+    write_mode: bag | copy | roll | hybrid
+      copy = bag write, no deplete (h = f)
+    Always: final head([h, arch]); no every-step reinject.
     """
 
     def __init__(self, input_dim, hidden_dim, num_classes, write_mode="bag", K=TAPE_K):
         super().__init__()
-        assert write_mode in (
-            "bag",
-            "hard",
-            "roll",
-            "hybrid",
-            "reinject",
-            "copy",
-            "twopass_cold",
-        )
+        assert write_mode in ("bag", "copy", "roll", "hybrid")
         self.hdim = hidden_dim
         self.write_mode = write_mode
         self.K = K
-        self.has_tape = write_mode == "hard"
         self.is_hybrid = write_mode == "hybrid"
-        self.is_twopass = write_mode == "twopass_cold"
         self.no_deplete = write_mode == "copy"
-        self.do_reinject = write_mode == "reinject"
 
         self.x_proj = nn.Linear(input_dim, hidden_dim)
         self.core = nn.Linear(hidden_dim, hidden_dim)
@@ -347,122 +357,50 @@ class SeqFEN(nn.Module):
         else:
             self.roll_gate = None
 
-        if self.do_reinject:
-            self.rj = nn.Linear(hidden_dim, hidden_dim)
+        if self.is_hybrid:
+            head_in = hidden_dim * 3  # h + E_bag + E_roll
         else:
-            self.rj = None
-
-        if self.is_twopass:
-            self.read_proj = nn.Linear(hidden_dim, hidden_dim)
-            self.c_proj = nn.Linear(hidden_dim, hidden_dim)
-        else:
-            self.read_proj = None
-            self.c_proj = None
-
-        if self.has_tape:
-            self.bag_proj = nn.Linear(hidden_dim, hidden_dim)
-            self.tape_pool = nn.Linear(K * hidden_dim, hidden_dim)
-            head_in = hidden_dim * 3
-        elif self.is_hybrid:
-            head_in = hidden_dim * 3
-            self.bag_proj = None
-            self.tape_pool = None
-        else:
-            head_in = hidden_dim * 2
-            self.bag_proj = None
-            self.tape_pool = None
+            head_in = hidden_dim * 2  # h + E
 
         self.head = _mlp_head(head_in, num_classes)
-
-    def _step(self, h, E, E_roll, E_tape, ptr, c_bag, x_t, c_ctx, g_acc):
-        z = h + x_t
-        if c_ctx is not None:
-            z = z + self.c_proj(c_ctx)
-        f = torch.tanh(self.core(z) + z)
-        g = torch.sigmoid(self.gate(f))
-        D = g * f
-        v = self.v_proj(D)
-
-        if self.no_deplete:
-            h = f
-        else:
-            h = f - D
-
-        mode = self.write_mode
-        if mode in ("bag", "copy", "reinject", "twopass_cold"):
-            E = E + v
-        elif mode == "roll":
-            gamma = torch.sigmoid(self.roll_gate(f))
-            E = (1.0 - gamma) * E + gamma * torch.roll(E, shifts=1, dims=-1) + v
-        elif mode == "hybrid":
-            E = E + v
-            gamma = torch.sigmoid(self.roll_gate(f))
-            E_roll = (
-                (1.0 - gamma) * E_roll
-                + gamma * torch.roll(E_roll, shifts=1, dims=-1)
-                + v
-            )
-        else:  # hard
-            one = F.one_hot(ptr, self.K).to(dtype=v.dtype)
-            E_tape = E_tape + one.unsqueeze(-1) * v.unsqueeze(1)
-            advance = (g.mean(dim=-1) > EVENT_GATE_THRESH).long()
-            ptr = (ptr + advance) % self.K
-            c_bag = c_bag + self.bag_proj(D)
-
-        if self.do_reinject:
-            h = h + torch.tanh(self.rj(E))
-
-        if g_acc is not None:
-            g_acc = g_acc + g.detach().mean()
-        return h, E, E_roll, E_tape, ptr, c_bag, g_acc
 
     def forward(self, x, return_stats=False):
         B, T, _ = x.shape
         h = x.new_zeros(B, self.hdim)
         E = x.new_zeros(B, self.hdim)
         E_roll = x.new_zeros(B, self.hdim) if self.is_hybrid else None
-        c_bag = x.new_zeros(B, self.hdim)
-        E_tape = x.new_zeros(B, self.K, self.hdim) if self.has_tape else None
-        ptr = (
-            torch.zeros(B, dtype=torch.long, device=x.device) if self.has_tape else None
-        )
         xp = self.x_proj(x)
-        g_acc = x.new_zeros(()) if return_stats else None
+        g_acc = x.new_zeros(())
 
-        def run_pass(h, E, E_roll, E_tape, ptr, c_bag, c_ctx, g_acc):
-            for t in range(T):
-                h, E, E_roll, E_tape, ptr, c_bag, g_acc = self._step(
-                    h, E, E_roll, E_tape, ptr, c_bag, xp[:, t], c_ctx, g_acc
+        for t in range(T):
+            z = h + xp[:, t]
+            f = torch.tanh(self.core(z) + z)
+            g = torch.sigmoid(self.gate(f))
+            D = g * f
+            v = self.v_proj(D)
+            h = f if self.no_deplete else (f - D)
+
+            if self.write_mode in ("bag", "copy"):
+                E = E + v
+            elif self.write_mode == "roll":
+                gamma = torch.sigmoid(self.roll_gate(f))
+                E = (1.0 - gamma) * E + gamma * torch.roll(E, shifts=1, dims=-1) + v
+            else:  # hybrid
+                E = E + v
+                gamma = torch.sigmoid(self.roll_gate(f))
+                E_roll = (
+                    (1.0 - gamma) * E_roll
+                    + gamma * torch.roll(E_roll, shifts=1, dims=-1)
+                    + v
                 )
-            return h, E, E_roll, E_tape, ptr, c_bag, g_acc
 
-        if self.is_twopass:
-            h, E, E_roll, E_tape, ptr, c_bag, g_acc = run_pass(
-                h, E, E_roll, E_tape, ptr, c_bag, None, g_acc
-            )
-            c_ctx = torch.tanh(self.read_proj(E))
-            h = x.new_zeros(B, self.hdim)  # cold
-            h, E, E_roll, E_tape, ptr, c_bag, g_acc = run_pass(
-                h, E, E_roll, E_tape, ptr, c_bag, c_ctx, g_acc
-            )
-            n_steps = 2 * T
-        else:
-            h, E, E_roll, E_tape, ptr, c_bag, g_acc = run_pass(
-                h, E, E_roll, E_tape, ptr, c_bag, None, g_acc
-            )
-            n_steps = T
+            g_acc = g_acc + g.detach().mean()
 
-        if self.has_tape:
-            pooled = torch.tanh(self.tape_pool(E_tape.reshape(B, -1)))
-            arch = torch.cat([pooled, c_bag], dim=-1)
-            esc_norm = E_tape.detach().norm(dim=-1).mean() + c_bag.detach().norm(
-                dim=-1
-            ).mean()
-        elif self.is_hybrid:
+        if self.is_hybrid:
             arch = torch.cat([E, E_roll], dim=-1)
-            esc_norm = E.detach().norm(dim=-1).mean() + E_roll.detach().norm(
-                dim=-1
-            ).mean()
+            esc_norm = (
+                E.detach().norm(dim=-1).mean() + E_roll.detach().norm(dim=-1).mean()
+            )
         else:
             arch = E
             esc_norm = E.detach().norm(dim=-1).mean()
@@ -471,9 +409,7 @@ class SeqFEN(nn.Module):
         if return_stats:
             return logits, {
                 "pipe_norm": h.detach().norm(dim=-1).mean(),
-                "gate": g_acc / max(n_steps, 1)
-                if g_acc is not None
-                else x.new_tensor(float("nan")),
+                "gate": g_acc / max(T, 1),
                 "escrow_norm": esc_norm,
             }
         return logits
@@ -504,11 +440,8 @@ MODEL_SPECS = {
     "residual": dict(kind="residual"),
     "fen_bag": dict(kind="fen", write_mode="bag"),
     "fen_copy": dict(kind="fen", write_mode="copy"),
-    "fen_hard_bag": dict(kind="fen", write_mode="hard"),
     "fen_roll": dict(kind="fen", write_mode="roll"),
     "fen_hybrid": dict(kind="fen", write_mode="hybrid"),
-    "fen_reinject": dict(kind="fen", write_mode="reinject"),
-    "fen_2pass_cold": dict(kind="fen", write_mode="twopass_cold"),
     "lstm": dict(kind="lstm", num_layers=1),
     "lstm_3L": dict(kind="lstm", num_layers=3),
 }
@@ -742,13 +675,15 @@ def train_one(name, X_train, y_train, X_test, y_test, meta, seed, epochs, batch_
 def main():
     print(
         f"TARGET_PARAMS≈{TARGET_PARAMS} | EPOCHS={EPOCHS} | SEEDS={SEEDS} | "
-        f"PERM_SEED={PERM_SEED}\n"
-        "exp09 sMNIST refs @10ep: hybrid≈0.91 ep1≈0.67 | roll≈0.88 ep1≈0.64 | "
-        "bag≈0.66 ep1≈0.24 | lstm1L≈0.11\n"
-        "If roll/hybrid ep1–ep2 collapse toward bag, local-raster hypothesis gains support."
+        f"INPUT_MODE={INPUT_MODE} | PATCH_SIZE={PATCH_SIZE if INPUT_MODE == 'patch' else 'n/a'}\n"
+        "Context from exp08/09 (digit streams):\n"
+        "  sMNIST: roll≈0.88 ep1≈0.64 | hybrid≈0.91 ep1≈0.67 | bag≈0.66 | lstm1L≈0.11\n"
+        "  pMNIST: roll≈0.88 ep1≈0.60 | hybrid≈0.84 ep1≈0.33 | bag≈0.40\n"
+        "Success on CIFAR: roll still leads early + peak vs bag/LSTM; pipe stays lean.\n"
+        "Failure (still useful): early roll edge dies → story is digit-stream limited."
     )
 
-    X_tr, y_tr, X_te, y_te, meta = make_pmnist(PERM_SEED)
+    X_tr, y_tr, X_te, y_te, meta = make_cifar100_seq()
     bs = BATCH_SIZE
     n_tr = (X_tr.shape[0] // bs) * bs
     n_te = (X_te.shape[0] // bs) * bs
@@ -761,15 +696,14 @@ def main():
     for seed in SEEDS:
         print(f"\n### seed={seed}")
         for name in MODEL_ORDER:
-            row = train_one(
-                name, X_tr, y_tr, X_te, y_te, meta, seed, EPOCHS, bs
-            )
+            row = train_one(name, X_tr, y_tr, X_te, y_te, meta, seed, EPOCHS, bs)
             by_model[name].append(row)
 
     print("\n" + "-" * 88)
     print(
-        f"SUMMARY  pmnist  T={meta['seq_len']}  perm_seed={meta['perm_seed']}  "
-        f"seeds={SEEDS}  target_params≈{TARGET_PARAMS}"
+        f"SUMMARY  cifar100  mode={meta['input_mode']}  T={meta['seq_len']}  "
+        f"C={meta['input_dim']}  seeds={SEEDS}  target_params≈{TARGET_PARAMS}  "
+        f"epochs={EPOCHS}"
     )
     print("-" * 88)
     print(
@@ -790,22 +724,36 @@ def main():
             f"{epb:8.1f} {pipe:7.2f} {params:8d}"
         )
     print("-" * 88)
-    # gaps if all present
+    print(f"Chance floor = {1.0 / NUM_CLASSES:.3f}")
+
     if "fen_roll" in by_model and "fen_bag" in by_model:
-        dr = by_model["fen_roll"][0]["acc"] - by_model["fen_bag"][0]["acc"]
-        dr1 = by_model["fen_roll"][0]["ep1"] - by_model["fen_bag"][0]["ep1"]
+        r0, b0 = by_model["fen_roll"][0], by_model["fen_bag"][0]
         print(
-            f"Gaps (this run): roll−bag peak={dr:+.3f}  roll−bag ep1={dr1:+.3f}\n"
-            f"exp09 sMNIST refs: roll−bag peak≈+0.22  roll−bag ep1≈+0.40"
+            f"Gaps: roll−bag peak={r0['acc'] - b0['acc']:+.3f}  "
+            f"ep1={r0['ep1'] - b0['ep1']:+.3f}  ep2={r0['ep2'] - b0['ep2']:+.3f}"
         )
+    if "fen_roll" in by_model and "lstm" in by_model:
+        r0, l0 = by_model["fen_roll"][0], by_model["lstm"][0]
+        print(
+            f"Gaps: roll−lstm1L peak={r0['acc'] - l0['acc']:+.3f}  "
+            f"ep1={r0['ep1'] - l0['ep1']:+.3f}"
+        )
+    if "fen_hybrid" in by_model and "fen_roll" in by_model:
+        h0, r0 = by_model["fen_hybrid"][0], by_model["fen_roll"][0]
+        print(
+            f"Gaps: hybrid−roll peak={h0['acc'] - r0['acc']:+.3f}  "
+            f"ep1={h0['ep1'] - r0['ep1']:+.3f}"
+        )
+
     print(
-        "How to read vs exp09 sMNIST:\n"
-        "  • Local-structure H: roll/hybrid *early* edge shrinks a lot under permutation\n"
-        "  • Generic long-memory H: roll still crushes bag on peak and ep1–ep2\n"
-        "  • Report both peak and ep1/ep2 — early is the main locality probe\n"
-        "  • lstm_3L vs roll: efficiency story under scrambled order"
+        "How to read:\n"
+        "  • Transfer OK: roll leads bag/LSTM on peak and especially ep1–ep2\n"
+        "  • Transfer weak: all models near chance, or residual/LSTM match roll\n"
+        "  • Hybrid vs roll: if hybrid only wins peak but loses early → same as sMNIST\n"
+        "  • copy vs bag: if copy > bag, deplete still task-dependent (as on sMNIST)\n"
+        "  • This is sequential RNN/FEN — not a 2D CNN CIFAR leaderboard"
     )
-    print("DONE — paste this SUMMARY (+ note ep1/ep2) back for scoring.")
+    print("DONE — paste this SUMMARY (+ ep1/ep2) back for scoring.")
     return by_model
 
 

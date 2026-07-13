@@ -1,16 +1,16 @@
 # ==============================================================================
-# fen_lab / EXP09b — Best-effort LSTM on sMNIST (honesty check for exp09)
+# fen_lab / EXP08b — Best-effort LSTM on sMNIST (honesty check for exp08)
 # ==============================================================================
-# exp09: 1-layer LSTM ~100k, 10 ep → ~chance (0.11) while fen_roll/hybrid ~0.88–0.91.
+# exp08: 1-layer LSTM ~100k, 10 ep → ~chance (0.11) while fen_roll/hybrid ~0.88–0.91.
 # Possible confound: under-powered LSTM recipe, not "LSTM cannot do sMNIST".
 #
-# This script ONLY sweeps LSTM variants on the SAME data protocol as exp09:
+# This script ONLY sweeps LSTM variants on the SAME data protocol as exp08:
 #   20×20 pixels → T=400, C=1
 #   1500 train / 200 test per digit
 #   GPU preload, full batches, TF32
 #
 # Variants (each ~TARGET_PARAMS when AUTO_MATCH)
-#   lstm_1L          1-layer nn.LSTM  (exp09 style)
+#   lstm_1L          1-layer nn.LSTM  (exp08 style)
 #   lstm_2L          2-layer nn.LSTM
 #   lstm_3L          3-layer nn.LSTM
 #   lstm_1L_wide     1-layer, TARGET_PARAMS×1.5 (more capacity)
@@ -20,9 +20,9 @@
 #
 # Longer default training (LSTM is cheap via cuDNN).
 # Goal: best accuracy any reasonable LSTM reaches under this data protocol.
-# If still ≪ FEN ~0.9, exp09 ranking stands; if LSTM reaches high, re-tune FEN vs LSTM.
+# If still ≪ FEN ~0.9, exp08 ranking stands; if LSTM reaches high, re-tune FEN vs LSTM.
 #
-# Data: Kaggle CSV / kagglehub / torchvision (same as exp09).
+# Data: Kaggle CSV / kagglehub / torchvision (same as exp08).
 # Paste whole file → GPU → Run. Deps: torch, numpy; optional pandas, kagglehub.
 # ==============================================================================
 
@@ -93,7 +93,7 @@ print(
     f"CUDA_GRAPHS={USE_CUDA_GRAPHS}"
 )
 print(
-    "EXP09b — Best-effort LSTM variants on same sMNIST protocol as exp09 "
+    "EXP08b — Best-effort LSTM variants on same sMNIST protocol as exp08 "
     "(give LSTM a fair chance)"
 )
 print(f"Variants: {MODEL_ORDER}")
@@ -112,7 +112,7 @@ def count_params(model: nn.Module) -> int:
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
-# ------------------------------ DATA (same as exp09) --------------------------
+# ------------------------------ DATA (same as exp08) --------------------------
 def _load_mnist_arrays():
     kaggle_root = "/kaggle/input"
     if os.path.isdir(kaggle_root):
@@ -520,8 +520,8 @@ def train_one(name, X_train, y_train, X_test, y_test, meta, seed, epochs, batch_
 def main():
     print(
         f"BASE_TARGET≈{BASE_TARGET_PARAMS} | EPOCHS={EPOCHS} | SEEDS={SEEDS}\n"
-        "Compare to exp09 FEN: roll~0.88 hybrid~0.91 bag~0.66 residual~0.10 @10ep.\n"
-        "If best LSTM still ~chance or <<0.8, exp09 FEN lead is not an epoch artifact."
+        "Compare to exp08 FEN: roll~0.88 hybrid~0.91 bag~0.66 residual~0.10 @10ep.\n"
+        "If best LSTM still ~chance or <<0.8, exp08 FEN lead is not an epoch artifact."
     )
 
     X_tr, y_tr, X_te, y_te, meta = make_smnist()
@@ -575,7 +575,7 @@ def main():
     best_acc = by_model[best_name][0]["acc"]
     print(
         f"BEST LSTM in this sweep: {best_name}  acc={best_acc:.3f}\n"
-        f"exp09 reference: fen_hybrid≈0.906  fen_roll≈0.881  fen_bag≈0.661  "
+        f"exp08 reference: fen_hybrid≈0.906  fen_roll≈0.881  fen_bag≈0.661  "
         f"lstm_1L@10ep≈0.110\n"
         "If best LSTM ≥ ~0.85, re-compare FEN vs that recipe; "
         "if best LSTM ≪ FEN, hard-bench ranking stands."
