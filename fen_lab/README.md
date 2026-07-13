@@ -4,11 +4,11 @@ Active FEN experiments. Full write-up: [`../README.md`](../README.md).
 
 ## Run
 
-1. Colab → GPU  
+1. Colab / Kaggle → GPU  
 2. Paste an entire `expXX_*.py` file → Run  
 3. Toggle `FAST_MODE` when present  
 
-Deps: `torch`, `numpy` (01–04, 01b); `pandas` for exp05.
+Deps: `torch`, `numpy`; `pandas` for some loaders (CIFAR/MNIST CSV).
 
 | Exp | File |
 |-----|------|
@@ -19,5 +19,10 @@ Deps: `torch`, `numpy` (01–04, 01b); `pandas` for exp05.
 | 04 | `exp04_mid_deliver.py` |
 | 05 | `exp05_real_data.py` |
 | 05b | `exp05_forda.py` |
+| 06 | `exp06_cifar100.py` |
+| 07 | `exp07_multipass_read.py` |
+| 08 | `exp08_shared_board.py` |
+| 09 | `exp09_smnist.py` |
+| 09b | `exp09b_lstm_smnist_sweep.py` |
 
 Archived early work: [`../history/`](../history/).
