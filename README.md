@@ -83,7 +83,7 @@ One skeleton; variants change **write** and **when/how** \(E\) is read.
 | **Bag** | Commutative “set of facts”; dual-role / static context |
 | **Hard pointer / slots** | Ordered cells; exact sequence outputs |
 | **Channel-roll** | Non-commutative vault; ordered **scans** (pixels, sensors) |
-| **Hybrid (bag + roll)** | Two vaults; strong on long ordered classification |
+| **Hybrid (bag + roll)** | Two vaults; best peak on *raster* sMNIST; early accuracy fragile under permutation |
 
 | Control | Role |
 |---------|------|
@@ -172,7 +172,7 @@ CANONICAL
 BY TASK FAMILY
   dual-role / static facts     → bag + deplete
   exact ordered outputs        → hard / slot write and/or slot read
-  long ordered classification  → roll (hybrid strong on raster sMNIST; see §8–10)
+  long ordered classification  → fen_roll default (hybrid: raster peak only; see §8–10)
   multi-worker facts           → escrow outside each pipe; head or shared E
 ```
 
@@ -235,7 +235,8 @@ Early accuracy shows **how direct the learning signal is**. Roll and hybrid put 
 
 | Variant | Lesson |
 |---------|--------|
-| **roll / hybrid** | Best for long **ordered scans**; hybrid best peak; roll best pure early climb |
+| **roll** | **Most consistent** long-scan write: strong **ep1–ep2 and peak** on sMNIST *and* pMNIST |
+| **hybrid (bag+roll)** | Best **peak on raster sMNIST**; early accuracy **collapses under perm** (ep1 0.67→0.33) — not the robust default |
 | **bag** | Works but **slow and weaker** on pixel streams (unlike dual-role toys) |
 | **copy (no deplete)** | Beats bag here → deplete is **task-dependent**, not always mandatory for classification scans |
 | **reinject** | Competitive peak, **worst pipe** (~18) → reject as architecture |
@@ -339,15 +340,26 @@ Peak gap **grows** (bag falls more than roll). **Ep1 and ep2 gaps do not shrink*
 |-------|------------|
 | Roll needs **raster spatial locality** as its main advantage | **No** — peak almost unchanged (0.881 → 0.875); ep1 still ~0.60 |
 | Roll = **ordered non-commutative escrow** over a *fixed* sequence order | **Yes** — still crushes bag on peak **and** ep1–ep2 under permutation |
-| Hybrid early boost is partly tied to raster-friendly structure | **Plausible** — hybrid ep1 **0.67 → 0.33** (large early hit); peak only 0.91 → 0.84 |
+| Hybrid early boost is fragile under non-raster order | **Yes** — hybrid ep1 **0.67 → 0.33** (halved); ep2 0.71 → 0.51; peak only 0.91 → 0.84. The bag vault in hybrid appears to drag early learning when the scan is not a spatial walk. |
+| **Roll is the most consistent long-scan write** | **Yes** — across sMNIST and pMNIST, roll keeps **ep1 ≈ 0.60+** and peak ≈ **0.88**; hybrid wins peak only on raster and loses early consistency under perm |
 | Bag is a poor write for long arbitrary-order scans | **Yes** — worst FEN on pMNIST (0.40), weak ep1–ep2 |
 | Residual always chance on \(T=400\) | **No** — residual **learns** on pMNIST (0.62) with fat pipe; raster sMNIST was especially hostile |
+
+**Roll vs hybrid (consistency, early first):**
+
+| | sMNIST ep1 | pMNIST ep1 | sMNIST peak | pMNIST peak |
+|--|-----------:|-----------:|------------:|------------:|
+| fen_roll | **0.64** | **0.60** | 0.88 | **0.88** |
+| fen_hybrid | **0.67** | **0.33** | **0.91** | 0.84 |
+
+Hybrid’s ep1 collapse under permutation is as important as roll’s stable ep1: **adding a bag channel is not free** — it can dilute the early-learning advantage that pure roll keeps on both raster and permuted streams. For a **default** long-sequence classification write, **roll is preferred** over hybrid on robustness (early + peak across orders). Hybrid remains a strong **raster-only** peak option.
 
 ```text
 sMNIST roll/hybrid success
   ≠ mainly “local CNN deposits from raster neighbors”
   ≈ “structured ordered vault + final read”
-     works for raster order and for a fixed random order
+     pure roll: stable early + peak under raster and perm
+     hybrid:    best peak on raster; early accuracy fragile under perm
 
 Early accuracy still ranks: roll moves useful signal immediately;
 bag and 1L LSTM (on raster) do not.
@@ -365,11 +377,12 @@ Permutation destroys **spatial adjacency** but keeps a **consistent temporal lay
 
 1. **Dual-state + escrow** fixes residual dual-load on foundation dual-role; residual fat-pipe failure also appears on long scans when the task is hostile (raster sMNIST).  
 2. **LSTM fails foundation probes** (exact recall 0; distracted joint ~0.10).  
-3. **Topology must match the task:** bag for dual-role; slots for exact lists; **roll (or hybrid) for long ordered classification streams**.  
+3. **Topology must match the task:** bag for dual-role; slots for exact lists; **`fen_roll` for long ordered classification streams**.  
 4. **Delivery is read, not continuous reinject** (pipe norms).  
-5. On **sMNIST**, FEN **beats LSTM** on peak and—more importantly—on **ep1–ep2**; roll/hybrid dominate.  
-6. On **pMNIST**, roll’s peak and **early** lead over bag **survive** permutation → advantage is **ordered escrow**, not primarily local spatial CNN-like deposits.  
-7. **Early accuracy is first-class evidence** of gradient usefulness and architectural stability. A late catch-up does not make two models equal.
+5. On **sMNIST**, FEN **beats LSTM** on peak and—more importantly—on **ep1–ep2**; roll/hybrid lead.  
+6. On **pMNIST**, roll keeps **ep1≈0.60 and peak≈0.88**; hybrid’s **early** accuracy falls hard (ep1≈0.33) → **roll is the consistent default**, hybrid is a raster peak specialist.  
+7. Roll’s early lead over bag **survives** permutation → advantage is **ordered escrow**, not primarily local spatial CNN-like deposits.  
+8. **Early accuracy is first-class evidence** of gradient usefulness and architectural stability. A late catch-up does not make two models equal.
 
 ### Task-dependent notes
 
@@ -377,7 +390,8 @@ Permutation destroys **spatial adjacency** but keeps a **consistent temporal lay
 |---------|--------|
 | Dual-role / static facts | `fen_bag` + deplete |
 | Exact ordered multi-token out | hard / slot |
-| Long ordered classification (sMNIST / pMNIST) | **`fen_roll`**; hybrid strong on raster, softer early under perm |
+| Long ordered classification | **`fen_roll`** (consistent early + peak on sMNIST and pMNIST) |
+| Raster-only peak chase | `fen_hybrid` optional; watch that early accuracy may not transfer |
 | Deplete always? | Strong for dual-role; on sMNIST **copy** beat bag — task-dependent |
 | Multi-pass / reinject as default | **No** |
 
@@ -417,4 +431,4 @@ Deps: `torch`, `numpy`; `pandas` for some data paths (see `requirements.txt`).
 
 Feature-Escrow Networks keep an active residual **pipe** and an external **escrow**: resolved features are gated into the archive and (when appropriate) removed from the pipe, then read when needed—like clearing nutrients from the intestinal lumen into the bloodstream.
 
-On synthetic probes that isolate dual-role retention and exact ordered memory, residual networks and LSTMs remain near chance while topology-matched FEN modes reach high accuracy. On long sequential digit streams, **channel-roll FEN leads on both peak and epoch-1/2 accuracy**, beating multi-layer LSTMs in sample efficiency; **permuted MNIST shows that this lead is not mainly “local CNN deposits from raster neighbors,”** but **ordered non-commutative escrow over a consistent sequence**, with early accuracy remaining the sharpest ranking signal.
+On synthetic probes that isolate dual-role retention and exact ordered memory, residual networks and LSTMs remain near chance while topology-matched FEN modes reach high accuracy. On long sequential digit streams, **channel-roll FEN is the most consistent write**: strong **epoch-1/2 and peak** on both raster sMNIST and permuted MNIST, beating LSTMs in sample efficiency. Hybrid bag+roll can edge peak on pure raster but **loses early convergence under permutation** (ep1 drops from ~0.67 to ~0.33). Permutation does not kill roll → the story is **ordered non-commutative escrow**, not mainly local CNN-like raster deposits; **early accuracy** remains the sharpest ranking signal.
