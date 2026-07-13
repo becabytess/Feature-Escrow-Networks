@@ -24,5 +24,6 @@ Deps: `torch`, `numpy`; `pandas` for some loaders (CIFAR/MNIST CSV).
 | 08 | `exp08_shared_board.py` |
 | 09 | `exp09_smnist.py` |
 | 09b | `exp09b_lstm_smnist_sweep.py` |
+| 10 | `exp10_pmnist.py` | pMNIST (perm) — ordered escrow vs local-raster hypothesis |
 
 Archived early work: [`../history/`](../history/).
