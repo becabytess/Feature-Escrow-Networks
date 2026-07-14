@@ -4,7 +4,7 @@ This repository is a personal research project documenting my experiments with a
 
 The core idea—which I wanted to test after noticing how traditional RNNs/LSTMs bottleneck by forcing a single vector to handle both active processing (CPU) and historical state (RAM)—is to decouple active computation from a separated, accumulated escrow memory. 
 
-This isn't a claim to a new mainstream SOTA architecture. It is simply a clean-slate playground where I designed experiments, ran rigorous baselines (including a best-effort tuned LSTM), and mapped out exactly where this decoupled memory mechanism succeeds (like counting and long sequential scans) and where it hits fundamental mathematical boundaries (like exact retrieval).
+This isn't a claim to a new mainstream SOTA architecture. It is simply a clean-slate playground where I designed experiments, ran rigorous baselines (including a best-effort tuned LSTM), and mapped out the properties and trade-offs of different memory topologies (such as bag-based accumulation, spatial channel rotation, and slot-addressable tape) across various sequential tasks.
 
 Clean-slate experimental track: [`fen_lab/`](fen_lab/).  
 
