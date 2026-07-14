@@ -29,4 +29,3 @@ Deps: `torch`, `numpy`; `pandas` for some loaders (CIFAR/MNIST CSV).
 | 12 | `exp12_deplete_law.py` | bag/roll × deplete (distracted; optional sMNIST) |
 | 12b | `exp12b_roll_nodep_smnist.py` | sMNIST roll **without** deplete (early signal) |
 
-Archived early work: [`../history/`](../history/) — not part of this track's evidence base.

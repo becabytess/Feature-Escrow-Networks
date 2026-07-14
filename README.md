@@ -1,15 +1,12 @@
 # Feature-Escrow Networks (FEN)
 
 Clean-slate experimental track: [`fen_lab/`](fen_lab/).  
-Earlier explorations are archived under [`history/`](history/) and are not part of this path’s evidence base.
 
 ```text
 Feature-Escrow-Networks/
   README.md           ← this document
   fen_lab/            ← experiments (Colab / Kaggle one-cells)
-  history/            ← archived early work
   requirements.txt
-  LICENSE
 ```
 
 ---
