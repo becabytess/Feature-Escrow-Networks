@@ -642,6 +642,14 @@ rank architectures primarily by write + early/peak accuracy.
 9. On **sequential CIFAR-100**, ranking **transfers** under high sequential stress: **regime map P8→P4→P2** shows compressed gaps at short/fat tokens and **roll ≫ bag** at long/thin (P2 bag ~chance).  
 10. **Deplete is optional pipe hygiene**, not a universal accuracy law: can hurt peak on dual-role @12 ep and on sMNIST bag; not required for roll’s sMNIST early signal; usually leaner pipe (§12).
 
+### Architectural Insight: FEN as Write-Time Compressed Attention
+
+Through this in-depth analysis of the results, FEN can be conceptualized in relation to standard Attention:
+
+1. **Read-Time vs. Write-Time Selection:** Standard Attention (Bahdanau or Transformer) achieves selective memory routing at **read-time**—it must store all past hidden states in $O(N)$ memory and search them using a Query-Key dot product. In contrast, FEN acts as a **Write-Time Compressed Attention** mechanism. It uses proposal gates ($g_t$) to select and route key features on the fly, folding them into a single $O(1)$ escrow vault.
+2. **Decoupled $O(1)$ Memory:** Unlike LSTMs, which also attempt write-time selection but immediately overwrite the memory by storing it in the active processing path ($h_t$), FEN isolates the selected features in $E_t$.
+3. **The Efficiency Trade-Off:** This research demonstrates that for tasks requiring accumulation, counting (like `distracted`), or ordered scans (like `smnist`), we do not need the memory or computational overhead of read-time search. By moving selection to the write stage and protecting the memory in an isolated $O(1)$ vault, FEN outperforms LSTMs by large margins while remaining just as computationally cheap.
+
 ### Task-dependent notes
 
 | Setting | Prefer |
