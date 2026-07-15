@@ -47,14 +47,14 @@ When both live in the same tensor, activity overwrites memory. Residuals help gr
 
 ## 2. Biological inspiration
 
-Metaphor: digestion in the **small intestine** (not biophysics).
+Metaphor: digestion in the **small intestine**.
 
 | Biology | FEN |
 |---------|-----|
-| Lumen (active tract) | **Pipe** \(h\) |
-| Ready to absorb? | **Gate** \(g\) |
-| Nutrients to bloodstream | **Escrow write** \(E\) |
-| Mass removed from tract | **Deplete** \(h \leftarrow f - D\) (optional hygiene) |
+| Lumen (active tract) | **Pipe** $h$ |
+| Ready to absorb? | **Gate** $g$ |
+| Nutrients to bloodstream | **Escrow write** $E$ |
+| Mass removed from tract | **Deplete** $h \leftarrow f - D$ (optional hygiene) |
 | Later use of nutrients | **Read** archive at query / final time |
 
 **Write into escrow** is the load-bearing split (pipe vs vault). **Deplete** (scrub the pipe after write) is a separate switch: it usually **lowers pipe norm**, but is **not** a universal accuracy booster (see §12). Metaphor still: absorption into bloodstream; emptying the lumen is often helpful hygiene, not always what makes the nutrients usable.
@@ -76,10 +76,10 @@ One skeleton. Almost every “variant” is a **small product of switches**, not
 | Step | Role |
 |------|------|
 | 1 | Propose on the pipe |
-| 2 | Gate → commit \(D\) |
-| 3 | Write \(D\) into external archive \(E\) |
-| 4 | **Optional** deplete: \(h \leftarrow f - D\) (else \(h \leftarrow f\); “copy-style”) |
-| 5 | Deliver via \(\mathrm{head}([h, \mathrm{arch}])\) at final / query time (not a continuous dump of \(E\) into \(h\)) |
+| 2 | Gate → commit $D$ |
+| 3 | Write $D$ into external archive $E$ |
+| 4 | **Optional** deplete: $h \leftarrow f - D$ (else $h \leftarrow f$; “copy-style”) |
+| 5 | Deliver via $\text{head}([h, \text{arch}])$ at final / query time (not a continuous dump of $E$ into $h$) |
 
 ### Switch A: write (topology; pick by **job**)
 
@@ -102,8 +102,8 @@ One skeleton. Almost every “variant” is a **small product of switches**, not
 
 | Pattern | Status |
 |---------|--------|
-| Final / mid **read** \(\mathrm{head}([h,E])\) | **Default** |
-| Every-step reinject \(E \to h\) | **Reject** (pipe bloat) |
+| Final / mid **read** $\text{head}([h,E])$ | **Default** |
+| Every-step reinject $E \to h$ | **Reject** (pipe bloat) |
 | Multi-pass cold read | Not an upgrade on foundation dual-role |
 
 ### Controls (not FEN)
@@ -123,11 +123,11 @@ Everything else is an ablation of those switches.
 
 ## 4. Foundation tasks (prove the failure modes)
 
-Synthetic probes (\(T = 96\), ~15k params) force dual-role overwrite and exact order into the open. These define **what FEN is for**, not which write wins on every dataset.
+Synthetic probes ($T = 96$, ~15k params) force dual-role overwrite and exact order into the open. These define **what FEN is for**, not which write wins on every dataset.
 
 ### Distracted counting
 
-Static **ID** at \(t=0\), then noisy **count** events. Label = ID × count bin.  
+Static **ID** at $t=0$, then noisy **count** events. Label = ID × count bin.  
 Success: high joint accuracy **and** high ID accuracy.
 
 ### Ordered recall (recall5)
@@ -174,8 +174,8 @@ Soft address under a pooled head stays near floor on exact recall. **Cell-aligne
 
 | Pattern | Result |
 |---------|--------|
-| Explicit mid/final read \(\mathrm{head}([h,E])\) | Strong dual-role, lean pipe |
-| Every-step reinject of \(E\) into \(h\) | Dual-role degraded, **pipe bloat** |
+| Explicit mid/final read $\text{head}([h,E])$ | Strong dual-role, lean pipe |
+| Every-step reinject of $E$ into $h$ | Dual-role degraded, **pipe bloat** |
 
 ```text
 Read the archive. Do not pour it into the pipe every step.
@@ -183,7 +183,7 @@ Read the archive. Do not pour it into the pipe every step.
 
 ### Multi-pass discrete read ([`exp06`](fen_lab/exp06_multipass_read.py))
 
-On distracted (already solved by 1-pass bag), a second full scan after a one-shot read of \(E\) stays lean but **does not beat** 1-pass bag. Residual two-pass stays at the floor. Reinject again shows fat pipes. **Default remains single-pass + final/mid read.**
+On distracted (already solved by 1-pass bag), a second full scan after a one-shot read of $E$ stays lean but **does not beat** 1-pass bag. Residual two-pass stays at the floor. Reinject again shows fat pipes. **Default remains single-pass + final/mid read.**
 
 ### Shared board ([`exp07`](fen_lab/exp07_shared_board.py))
 
@@ -219,7 +219,7 @@ BY TASK FAMILY
 Foundation tasks hit **ceiling** for many FEN variants, so they are the wrong place to rank “which FEN is better.”  
 **sMNIST** (pixel stream) is used as a hard sequential task with headroom.
 
-**Protocol** ([`exp08`](fen_lab/exp08_smnist.py)): 28×28 → 20×20, \(T=400\), \(C=1\), 1500 train / 200 test per digit, ~100k params, seed 1, 10 epochs for the FEN sweep.
+**Protocol** ([`exp08`](fen_lab/exp08_smnist.py)): 28×28 → 20×20, $T=400$, $C=1$, 1500 train / 200 test per digit, ~100k params, seed 1, 10 epochs for the FEN sweep.
 
 ### Peak accuracy (FEN sweep)
 
@@ -339,7 +339,7 @@ Efficiency: FEN reaches high accuracy while LSTM is still near floor
 
 On **raster** sMNIST, early escrow commits might store **local spatial** structure along the scan (neighboring timesteps ≈ nearby pixels), i.e. a weak CNN-like path: local decisions → board → final head. That would explain roll/hybrid’s huge **ep1–ep2** lead.
 
-**Test** ([`exp09`](fen_lab/exp09_pmnist.py)): same protocol as exp08, but a **fixed random permutation** of the \(T=400\) axis (`PERM_SEED=123`) is applied to every sample. Spatial neighborhoods along the sequence are destroyed; a **consistent** (scrambled) order remains across train/test.
+**Test** ([`exp09`](fen_lab/exp09_pmnist.py)): same protocol as exp08, but a **fixed random permutation** of the $T=400$ axis (`PERM_SEED=123`) is applied to every sample. Spatial neighborhoods along the sequence are destroyed; a **consistent** (scrambled) order remains across train/test.
 
 **If spatial locality is the main story:** roll/hybrid peak and **especially ep1–ep2** should collapse toward bag; `roll − bag` gaps should shrink.  
 **If ordered non-commutative escrow is the main story:** roll should still dominate bag on peak **and** early accuracy.
@@ -391,7 +391,7 @@ Peak gap **grows** (bag falls more than roll). **Ep1 and ep2 gaps do not shrink*
 | Hybrid early boost is fragile under non-raster order | **Yes** (hybrid ep1 **0.67 → 0.33** (halved); ep2 0.71 → 0.51; peak only 0.91 → 0.84. The bag vault in hybrid appears to drag early learning when the scan is not a spatial walk.) |
 | **Roll is the most consistent long-scan write** | **Yes** (across sMNIST and pMNIST, roll keeps **ep1 ≈ 0.60+** and peak ≈ **0.88**; hybrid wins peak only on raster and loses early consistency under perm) |
 | Bag is a poor write for long arbitrary-order scans | **Yes** (worst FEN on pMNIST 0.40, weak ep1–ep2) |
-| Residual always chance on \(T=400\) | **No** (residual **learns** on pMNIST 0.62 with fat pipe; raster sMNIST was especially hostile) |
+| Residual always chance on $T=400$ | **No** (residual **learns** on pMNIST 0.62 with fat pipe; raster sMNIST was especially hostile) |
 
 **Roll vs hybrid (consistency, early first):**
 
@@ -440,13 +440,13 @@ After sMNIST / pMNIST, the open question was: **does the frozen FEN story (espec
 
 | Mode | Patch | Shape | Sequential stress |
 |------|------:|-------|-------------------|
-| **P8** (shortest, fattest) | 8×8 | \(T=16\), \(C=192\) | **low** (almost short token classification) |
-| **P4** (short fat tokens) | 4×4 | \(T=64\), \(C=48\) | **mid** (local structure per step, short scan) |
-| **P2** (longer thin tokens) | 2×2 | \(T=256\), \(C=12\) | **high** (longer ordered scan, less info per step) |
+| **P8** (shortest, fattest) | 8×8 | $T=16$, $C=192$ | **low** (almost short token classification) |
+| **P4** (short fat tokens) | 4×4 | $T=64$, $C=48$ | **mid** (local structure per step, short scan) |
+| **P2** (longer thin tokens) | 2×2 | $T=256$, $C=12$ | **high** (longer ordered scan, less info per step) |
 
 Hypothesis: large patches can **compress** architecture gaps (everyone grabs easy local signal; hard wall ~20% from capacity/100-class difficulty). Smaller patches **restore long-scan pressure** and should reopen roll ≫ bag if the ordered-escrow story is real.
 
-### A. Patch-8 (\(T=16\), \(C=192\)): low stress ([`exp11`](fen_lab/exp11_stress_curve.py))
+### A. Patch-8 ($T=16$, $C=192$): low stress ([`exp11`](fen_lab/exp11_stress_curve.py))
 
 **15 epochs**, lean model set
 
@@ -463,7 +463,7 @@ P8: everyone in a pile (~0.13–0.20); residual *learns*; roll−bag peak only +
 Low sequential stress → architecture gaps compressed
 ```
 
-### B. Patch-4 (\(T=64\), \(C=48\)): mid stress
+### B. Patch-4 ($T=64$, $C=48$): mid stress
 
 **15 epochs**
 
@@ -497,7 +497,7 @@ P4 ep1:  roll 0.105  >  hybrid 0.085  >  bag 0.055  >  residual/lstm ~0.03
 
 **P4 read:** Rankings still hold (roll early; hybrid/roll peak; residual fat pipe fails; FEN > LSTM). Absolute band is **~15–23%** (well above 1% chance, far from CNN CIFAR). **Doubling epochs barely moves peaks** → **hard wall / capacity limit**, not “need more training.” **Gaps are small** (roll−bag peak only **+0.01–0.02**): short fat tokens let bag/LSTM learn enough that write topology is less decisive. Bag vs copy (deplete): **bag > copy** here (opposite of sMNIST bag vs copy). exp11 P4 **matches exp10 P4** on shared models (reproducible).
 
-### C. Patch-2 (\(T=256\), \(C=12\)): high stress
+### C. Patch-2 ($T=256$, $C=12$): high stress
 
 **15 epochs** (main long-scan ranking for sequential CIFAR)
 
@@ -549,7 +549,7 @@ residual:       lives at P8 (0.13) → dies as T grows (0.08 → 0.06), fat pipe
 
 | Setting | Prefer |
 |---------|--------|
-| Sequential CIFAR ranking / long scan | **patch-2** (\(T=256\)) + **`fen_roll`** |
+| Sequential CIFAR ranking / long scan | **patch-2** ($T=256$) + **`fen_roll`** |
 | Short-token transfer / compression check | patch-4 or patch-8; report that gaps shrink |
 | Peak-only on patch streams | hybrid optional (small edge @30ep P4); watch early |
 | Deplete on this domain | bag > copy on P4; both fail on P2; see §12 |
@@ -558,14 +558,14 @@ residual:       lives at P8 (0.13) → dies as T grows (0.08 → 0.06), fat pipe
 
 ## 12. Deplete law (optional pipe hygiene)
 
-**Question:** is \(h \leftarrow f - D\) load-bearing for accuracy, or mainly pipe control?
+**Question:** is $h \leftarrow f - D$ load-bearing for accuracy, or mainly pipe control?
 
 `fen_copy` = bag write + **no** deplete. `roll_nodep` = roll write + **no** deplete.  
 Do **not** confuse “copy lost on some leaderboard” with “deplete always wins.”
 
 ### A. Dual-role grid ([`exp12`](fen_lab/exp12_deplete_law.py))
 
-Distracted counting, ~15k params, \(T=96\), 12 epochs, seed 1. Models: bag/roll × deplete on/off.
+Distracted counting, ~15k params, $T=96$, 12 epochs, seed 1. Models: bag/roll × deplete on/off.
 
 | Model | peak | id | count | ep1 | ep2 | pipe |
 |-------|-----:|---:|------:|----:|----:|-----:|
@@ -656,7 +656,7 @@ Through this in-depth analysis of the results, FEN can be conceptualized in rela
 | Dual-role / static facts | **`fen_bag`** (escrow); deplete **optional** for peak (prefer if you care about lean pipe) |
 | Exact ordered multi-token out | hard / slot |
 | Long ordered classification (digits, long scans) | **`fen_roll`** (± deplete; deplete not required for early sMNIST) |
-| Sequential CIFAR (ranking) | **`fen_roll`** + **patch-2** (\(T=256\)); P4/P8 as compression checks |
+| Sequential CIFAR (ranking) | **`fen_roll`** + **patch-2** ($T=256$); P4/P8 as compression checks |
 | Raster / short-token peak chase | `fen_hybrid` optional; early accuracy often worse than pure roll |
 | Deplete always? | **No** (pipe hygiene; accuracy effect flips by task/budget; see §12) |
 | Multi-pass / reinject as default | **No** |
