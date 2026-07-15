@@ -2,7 +2,7 @@
 
 This repository is a personal research project documenting my experiments with a novel recurrent neural network concept: **Feature-Escrow Networks (FEN)**. 
 
-The core idea—which I wanted to test after noticing how traditional RNNs/LSTMs bottleneck by forcing a single vector to handle both active processing (CPU) and historical state (RAM)—is to decouple active computation from a separated, accumulated escrow memory. 
+The core idea, which I wanted to test after noticing how traditional RNNs/LSTMs bottleneck by forcing a single vector to handle both active processing (CPU) and historical state (RAM), is to decouple active computation from a separated, accumulated escrow memory. 
 
 This isn't a claim to a new mainstream SOTA architecture. It is simply a clean-slate playground where I designed experiments, ran rigorous baselines (including a best-effort tuned LSTM), and mapped out the properties and trade-offs of different memory topologies (such as bag-based accumulation, spatial channel rotation, and slot-addressable tape) across various sequential tasks.
 
@@ -24,7 +24,7 @@ Results are reported with **two** complementary views:
 | Metric | What it shows |
 |--------|----------------|
 | **Peak / best accuracy** | Whether the model can solve the task under the budget |
-| **Early accuracy (epoch 1–2, and climb)** | How directly useful signal reaches parameters — gradient flow, stability, sample efficiency |
+| **Early accuracy (epoch 1–2, and climb)** | How directly useful signal reaches parameters: gradient flow, stability, sample efficiency |
 
 A model that is weak early and strong late is not “equal” to one that is strong early, even if final numbers are close. Early accuracy is treated as evidence of **how well the architecture propagates learning signal**, not as a minor training detail. On harder or longer data, poor early dynamics usually get worse, not better.
 
@@ -36,8 +36,8 @@ A model that is weak early and strong late is not “equal” to one that is str
 
 Sequential models often force **one** hidden state to do two jobs:
 
-1. **Active computation** — update on the current step, count, react to noise  
-2. **Long-lived memory** — keep facts that must survive many steps of that activity  
+1. **Active computation** : update on the current step, count, react to noise  
+2. **Long-lived memory** : keep facts that must survive many steps of that activity  
 
 When both live in the same tensor, activity overwrites memory. Residuals help gradients but can **bloat** the stream over long sequences (high norm, context drift, dual-role collapse).
 
@@ -79,9 +79,9 @@ One skeleton. Almost every “variant” is a **small product of switches**, not
 | 2 | Gate → commit \(D\) |
 | 3 | Write \(D\) into external archive \(E\) |
 | 4 | **Optional** deplete: \(h \leftarrow f - D\) (else \(h \leftarrow f\); “copy-style”) |
-| 5 | Deliver via \(\mathrm{head}([h, \mathrm{arch}])\) at final / query time — not continuous dump of \(E\) into \(h\) |
+| 5 | Deliver via \(\mathrm{head}([h, \mathrm{arch}])\) at final / query time (not a continuous dump of \(E\) into \(h\)) |
 
-### Switch A — write (topology; pick by **job**)
+### Switch A: write (topology; pick by **job**)
 
 | Write | Role | Typical job |
 |-------|------|-------------|
@@ -90,7 +90,7 @@ One skeleton. Almost every “variant” is a **small product of switches**, not
 | **Channel-roll** | Non-commutative vault | Long **ordered scans** (pixels, sensors) |
 | **Hybrid (bag + roll)** | Two vaults | Raster peak specialist; early often fragile |
 
-### Switch B — deplete
+### Switch B: deplete
 
 | Name in logs | Meaning |
 |--------------|---------|
@@ -98,7 +98,7 @@ One skeleton. Almost every “variant” is a **small product of switches**, not
 | `fen_copy` / `bag_nodep` | **bag** write + **deplete off** |
 | `roll_nodep` | **roll** write + **deplete off** |
 
-### Switch C — deliver (frozen)
+### Switch C: deliver (frozen)
 
 | Pattern | Status |
 |---------|--------|
@@ -199,9 +199,8 @@ CANONICAL
   deliver by read, not every-step reinject
 
 BY TASK FAMILY
-  dual-role / static facts     → bag write (escrow load-bearing; deplete optional — §12)
-  exact ordered outputs        → hard / slot write and/or slot read
-  long ordered classification  → fen_roll default (deplete not required for early sMNIST — §12)
+  dual-role / static facts     → bag write (escrow load-bearing; deplete optional; see §12)
+  long ordered classification  → fen_roll default (deplete not required for early sMNIST; see §12)
   multi-worker facts           → escrow outside each pipe; head or shared E
   sequential CIFAR ranking     → fen_roll + longer thin tokens (patch-2); stress curve §11
   deplete                      → pipe hygiene; not a universal accuracy switch (§12)
@@ -242,7 +241,7 @@ hybrid 0.91  ≳  roll_nodep 0.89  ≈  roll+dep 0.88  >  reinject 0.82  >  copy
   >  hard 0.72  >  bag 0.66  ≫  2pass 0.47  ≫  1L LSTM ≈ residual ≈ chance (@10 ep)
 ```
 
-### Early accuracy (epoch 1–2) — primary ranking signal
+### Early accuracy (epoch 1–2): primary ranking signal
 
 | Model | ep1 | ep2 | Note |
 |-------|----:|----:|------|
@@ -285,7 +284,7 @@ Deplete: slightly leaner pipe; not the reason roll beats bag.
 | Variant | Lesson |
 |---------|--------|
 | **roll** (± deplete) | **Most consistent** long-scan write: strong **ep1–ep2 and peak** on sMNIST *and* pMNIST; deplete optional |
-| **hybrid (bag+roll)** | Best **peak on raster sMNIST**; early accuracy **collapses under perm** (ep1 0.67→0.33) — not the robust default |
+| **hybrid (bag+roll)** | Best **peak on raster sMNIST**; early accuracy **collapses under perm** (ep1 0.67→0.33) (not the robust default) |
 | **bag** | Works but **slow and weaker** on pixel streams (unlike dual-role toys) |
 | **copy (bag, no deplete)** | Beats bag here → for **bag** write, deplete can **hurt** scan accuracy |
 | **reinject** | Competitive peak, **worst pipe** (~18) → reject as architecture |
@@ -302,12 +301,12 @@ exp08’s 1-layer LSTM @10 ep sat near chance. A dedicated sweep tests whether t
 
 | Variant | best | ep1 | ep2 | to 50% | to 80% |
 |---------|-----:|----:|----:|-------:|-------:|
-| lstm_2L_hiLR | 0.102 | 0.10 | 0.10 | — | — |
-| lstm_1L_wide | 0.170 | 0.10 | 0.13 | — | — |
-| lstm_1L | 0.477 | 0.10 | 0.10 | — | — |
-| lstm_2L | 0.719 | 0.10 | 0.12 | ep16 | — |
-| lstm_2L_wide | 0.720 | 0.10 | 0.26 | ep23 | — |
-| lstm_2L_drop | 0.774 | 0.10 | 0.15 | ep13 | — |
+| lstm_2L_hiLR | 0.102 | 0.10 | 0.10 | - | - |
+| lstm_1L_wide | 0.170 | 0.10 | 0.13 | - | - |
+| lstm_1L | 0.477 | 0.10 | 0.10 | - | - |
+| lstm_2L | 0.719 | 0.10 | 0.12 | ep16 | - |
+| lstm_2L_wide | 0.720 | 0.10 | 0.26 | ep23 | - |
+| lstm_2L_drop | 0.774 | 0.10 | 0.15 | ep13 | - |
 | **lstm_3L (best)** | **0.802** | 0.10 | 0.23 | ep15 | **ep30** |
 
 ### FEN vs best LSTM (honest comparison)
@@ -322,7 +321,7 @@ exp08’s 1-layer LSTM @10 ep sat near chance. A dedicated sweep tests whether t
 **Conclusions:**
 
 1. **FEN beats LSTM** on this hard sequential protocol: higher peak with **far fewer** epochs.  
-2. LSTM is **not** permanently stuck at chance if given depth and time — 3L reaches ~0.80 at ep30.  
+2. LSTM is **not** permanently stuck at chance if given depth and time; 3L reaches ~0.80 at ep30.  
 3. That does **not** erase the architectural gap: even if an LSTM later reached a high final score, **early accuracy** shows it struggles to move useful signal in the first epochs. Roll is already at **0.80 by epoch 2**, where the best LSTM is still ~0.23 after a full honesty sweep.  
 4. On more complex or longer data, architectures that only “eventually” learn with deep stacks and long schedules tend to degrade more; early dynamics are a leading indicator of that stress.
 
@@ -334,7 +333,7 @@ Efficiency: FEN reaches high accuracy while LSTM is still near floor
 
 ---
 
-## 10. Permuted MNIST (pMNIST) — is roll a “weak CNN” of local pixels?
+## 10. Permuted MNIST (pMNIST): is roll a “weak CNN” of local pixels?
 
 ### Hypothesis
 
@@ -363,7 +362,7 @@ pMNIST ep1:   roll 0.60  >  residual 0.40  >  hybrid 0.33  >  lstm 0.22 ≈ copy
 pMNIST ep2:   roll 0.67  >  residual 0.55  >  hybrid 0.51  >  lstm 0.49  >  copy 0.33  >  bag 0.23
 ```
 
-### Side-by-side with sMNIST (exp08) — peak **and** early
+### Side-by-side with sMNIST (exp08): peak **and** early
 
 | Model | sMNIST best / ep1 / ep2 | pMNIST best / ep1 / ep2 |
 |--------|-------------------------|-------------------------|
@@ -381,18 +380,18 @@ pMNIST ep2:   roll 0.67  >  residual 0.55  >  hybrid 0.51  >  lstm 0.49  >  copy
 | sMNIST | +0.22 | **+0.40** | **+0.44** |
 | pMNIST | **+0.47** | **+0.41** | **+0.44** |
 
-Peak gap **grows** (bag falls more than roll). **Ep1 and ep2 gaps do not shrink** — roll’s early lead over bag is essentially unchanged.
+Peak gap **grows** (bag falls more than roll). **Ep1 and ep2 gaps do not shrink**; roll’s early lead over bag is essentially unchanged.
 
 ### Verdict
 
 | Claim | Supported? |
 |-------|------------|
-| Roll needs **raster spatial locality** as its main advantage | **No** — peak almost unchanged (0.881 → 0.875); ep1 still ~0.60 |
-| Roll = **ordered non-commutative escrow** over a *fixed* sequence order | **Yes** — still crushes bag on peak **and** ep1–ep2 under permutation |
-| Hybrid early boost is fragile under non-raster order | **Yes** — hybrid ep1 **0.67 → 0.33** (halved); ep2 0.71 → 0.51; peak only 0.91 → 0.84. The bag vault in hybrid appears to drag early learning when the scan is not a spatial walk. |
-| **Roll is the most consistent long-scan write** | **Yes** — across sMNIST and pMNIST, roll keeps **ep1 ≈ 0.60+** and peak ≈ **0.88**; hybrid wins peak only on raster and loses early consistency under perm |
-| Bag is a poor write for long arbitrary-order scans | **Yes** — worst FEN on pMNIST (0.40), weak ep1–ep2 |
-| Residual always chance on \(T=400\) | **No** — residual **learns** on pMNIST (0.62) with fat pipe; raster sMNIST was especially hostile |
+| Roll needs **raster spatial locality** as its main advantage | **No** (peak almost unchanged 0.881 → 0.875; ep1 still ~0.60) |
+| Roll = **ordered non-commutative escrow** over a *fixed* sequence order | **Yes** (still crushes bag on peak **and** ep1–ep2 under permutation) |
+| Hybrid early boost is fragile under non-raster order | **Yes** (hybrid ep1 **0.67 → 0.33** (halved); ep2 0.71 → 0.51; peak only 0.91 → 0.84. The bag vault in hybrid appears to drag early learning when the scan is not a spatial walk.) |
+| **Roll is the most consistent long-scan write** | **Yes** (across sMNIST and pMNIST, roll keeps **ep1 ≈ 0.60+** and peak ≈ **0.88**; hybrid wins peak only on raster and loses early consistency under perm) |
+| Bag is a poor write for long arbitrary-order scans | **Yes** (worst FEN on pMNIST 0.40, weak ep1–ep2) |
+| Residual always chance on \(T=400\) | **No** (residual **learns** on pMNIST 0.62 with fat pipe; raster sMNIST was especially hostile) |
 
 **Roll vs hybrid (consistency, early first):**
 
@@ -401,7 +400,7 @@ Peak gap **grows** (bag falls more than roll). **Ep1 and ep2 gaps do not shrink*
 | fen_roll | **0.64** | **0.60** | 0.88 | **0.88** |
 | fen_hybrid | **0.67** | **0.33** | **0.91** | 0.84 |
 
-Hybrid’s ep1 collapse under permutation is as important as roll’s stable ep1: **adding a bag channel is not free** — it can dilute the early-learning advantage that pure roll keeps on both raster and permuted streams. For a **default** long-sequence classification write, **roll is preferred** over hybrid on robustness (early + peak across orders). Hybrid remains a strong **raster-only** peak option.
+Hybrid’s ep1 collapse under permutation is as important as roll’s stable ep1: **adding a bag channel is not free; it can dilute the early-learning advantage that pure roll keeps on both raster and permuted streams. For a default long-sequence classification write, roll is preferred over hybrid on robustness (early + peak across orders). Hybrid remains a strong raster-only peak option.**
 
 ```text
 sMNIST roll/hybrid success
@@ -425,7 +424,7 @@ Permutation destroys **spatial adjacency** but keeps a **consistent temporal lay
 After sMNIST / pMNIST, the open question was: **does the frozen FEN story (especially `fen_roll` + final read) transfer beyond digit streams?**
 
 **Not claimed:** CNN-level CIFAR accuracy. This is a **sequential RNN/FEN** protocol (~100k params), not 2D vision SOTA. Chance floor = **1%**.  
-**Not evidence:** archived spatial-CNN CIFAR under [`history/`](history/) (~+1% over plain CNN) — different architecture, different claim.
+**Not evidence:** archived spatial-CNN CIFAR (~+1% over plain CNN); different architecture, different claim.
 
 ### Protocol ([`exp10`](fen_lab/exp10_cifar100.py), stress curve [`exp11`](fen_lab/exp11_stress_curve.py))
 
@@ -441,13 +440,13 @@ After sMNIST / pMNIST, the open question was: **does the frozen FEN story (espec
 
 | Mode | Patch | Shape | Sequential stress |
 |------|------:|-------|-------------------|
-| **P8** (shortest, fattest) | 8×8 | \(T=16\), \(C=192\) | **low** — almost short token classification |
-| **P4** (short fat tokens) | 4×4 | \(T=64\), \(C=48\) | **mid** — local structure per step, short scan |
-| **P2** (longer thin tokens) | 2×2 | \(T=256\), \(C=12\) | **high** — longer ordered scan, less info per step |
+| **P8** (shortest, fattest) | 8×8 | \(T=16\), \(C=192\) | **low** (almost short token classification) |
+| **P4** (short fat tokens) | 4×4 | \(T=64\), \(C=48\) | **mid** (local structure per step, short scan) |
+| **P2** (longer thin tokens) | 2×2 | \(T=256\), \(C=12\) | **high** (longer ordered scan, less info per step) |
 
 Hypothesis: large patches can **compress** architecture gaps (everyone grabs easy local signal; hard wall ~20% from capacity/100-class difficulty). Smaller patches **restore long-scan pressure** and should reopen roll ≫ bag if the ordered-escrow story is real.
 
-### A. Patch-8 (\(T=16\), \(C=192\)) — low stress ([`exp11`](fen_lab/exp11_stress_curve.py))
+### A. Patch-8 (\(T=16\), \(C=192\)): low stress ([`exp11`](fen_lab/exp11_stress_curve.py))
 
 **15 epochs**, lean model set
 
@@ -464,7 +463,7 @@ P8: everyone in a pile (~0.13–0.20); residual *learns*; roll−bag peak only +
 Low sequential stress → architecture gaps compressed
 ```
 
-### B. Patch-4 (\(T=64\), \(C=48\)) — mid stress
+### B. Patch-4 (\(T=64\), \(C=48\)): mid stress
 
 **15 epochs**
 
@@ -498,7 +497,7 @@ P4 ep1:  roll 0.105  >  hybrid 0.085  >  bag 0.055  >  residual/lstm ~0.03
 
 **P4 read:** Rankings still hold (roll early; hybrid/roll peak; residual fat pipe fails; FEN > LSTM). Absolute band is **~15–23%** (well above 1% chance, far from CNN CIFAR). **Doubling epochs barely moves peaks** → **hard wall / capacity limit**, not “need more training.” **Gaps are small** (roll−bag peak only **+0.01–0.02**): short fat tokens let bag/LSTM learn enough that write topology is less decisive. Bag vs copy (deplete): **bag > copy** here (opposite of sMNIST bag vs copy). exp11 P4 **matches exp10 P4** on shared models (reproducible).
 
-### C. Patch-2 (\(T=256\), \(C=12\)) — high stress
+### C. Patch-2 (\(T=256\), \(C=12\)): high stress
 
 **15 epochs** (main long-scan ranking for sequential CIFAR)
 
@@ -519,7 +518,7 @@ P2 ep1:   roll 0.075  ≫  hybrid 0.037  ≥  residual 0.033  >  lstm 0.026  >  
 
 **P2 read:** Absolute peaks drop (longer scan, thinner tokens). **Architecture gaps reopen hard.** Bag falls to **near chance** while roll holds **~15%** → commutative bag is the **wrong write** for this stream (capability gap, not a small lag). Hybrid **ties peak** with roll but **halves early accuracy** (bag vault drags again). Residual stays weak with a **fat pipe**. LSTM learns but stays below roll on peak and early. (P2 numbers from exp10; not re-run in exp11 to save GPU time.)
 
-### D. Regime map — gaps vs sequential stress
+### D. Regime map: gaps vs sequential stress
 
 Combined **exp11** (P8, P4) + **exp10** (P2). Same subset / ~100k / seed 1 / 15 ep where comparable.
 
@@ -537,14 +536,14 @@ residual:       lives at P8 (0.13) → dies as T grows (0.08 → 0.06), fat pipe
 
 | Claim | Supported? |
 |-------|------------|
-| Frozen FEN ranking transfers beyond digits | **Yes** — especially under P2 |
+| Frozen FEN ranking transfers beyond digits | **Yes** (especially under P2) |
 | Roll is consistent default (early + peak among FEN) | **Yes** on P2 and P4/P8 early; mid peak hybrid ≳ roll |
 | Hybrid loses early vs pure roll as stress grows | **Yes** (ep1 gap 0 → −0.02 → −0.04) |
-| Bag is fine for long ordered vision streams | **No** — dies on P2 (~3%) |
-| More epochs fix P4 wall | **No** — 15→30 adds ~1–2 points |
-| This is CNN-competitive CIFAR | **No** — sequential ~100k protocol only |
-| Large patches erase FEN advantages | **Partially** — compress peak gaps; early roll lead still visible |
-| Gap grows smoothly with every T step | **No** — more like short/mid compressed, long thin reopens |
+| Bag is fine for long ordered vision streams | **No** (dies on P2 ~3%) |
+| More epochs fix P4 wall | **No** (15→30 adds ~1–2 points) |
+| This is CNN-competitive CIFAR | **No** (sequential ~100k protocol only) |
+| Large patches erase FEN advantages | **Partially** (compress peak gaps; early roll lead still visible) |
+| Gap grows smoothly with every T step | **No** (more like short/mid compressed, long thin reopens) |
 
 ### CIFAR defaults (after exp10–11)
 
@@ -581,7 +580,7 @@ Distracted counting, ~15k params, \(T=96\), 12 epochs, seed 1. Models: bag/roll 
 ```
 
 **Read:** On this short dual-role probe @12 ep, **no-deplete wins peak and id** for both writes; **deplete wins lean pipe**.  
-`bag_dep` is still climbing late (joint ~0.45→0.78 ep8–11) while `bag_nodep` is already ~0.95 — budget/trajectory matters.  
+`bag_dep` is still climbing late (joint ~0.45→0.78 ep8–11) while `bag_nodep` is already ~0.95; budget/trajectory matters.  
 **Escrow still solves dual-role** vs residual/LSTM floors in §4; deplete is **not** what makes the vault work. Bag still beats roll on this dual-role job (topology match).
 
 ### B. Long-scan bag deplete (already in exp08 / exp10; no new slow runs)
@@ -635,7 +634,7 @@ rank architectures primarily by write + early/peak accuracy.
 2. **LSTM fails foundation probes** (exact recall 0; distracted joint ~0.10).  
 3. **Topology must match the task:** bag for dual-role; slots for exact lists; **`fen_roll` for long ordered classification streams**. Roll is **not** universal #1 (loses dual-role to bag; that is expected).  
 4. **Delivery is read, not continuous reinject** (pipe norms).  
-5. On **sMNIST**, FEN **beats LSTM** on peak and—more importantly—on **ep1–ep2**; roll/hybrid lead; **roll without deplete keeps the early jump** (ep1≈0.69).  
+5. On **sMNIST**, FEN **beats LSTM** on peak and, more importantly, on **ep1–ep2**; roll/hybrid lead; **roll without deplete keeps the early jump** (ep1≈0.69).  
 6. On **pMNIST**, roll keeps **ep1≈0.60 and peak≈0.88**; hybrid’s **early** accuracy falls hard (ep1≈0.33) → **roll is the consistent default**, hybrid is a raster peak specialist.  
 7. Roll’s early lead over bag **survives** permutation → advantage is **ordered escrow**, not primarily local spatial CNN-like deposits.  
 8. **Early accuracy is first-class evidence** of gradient usefulness and architectural stability. A late catch-up does not make two models equal.  
@@ -646,7 +645,7 @@ rank architectures primarily by write + early/peak accuracy.
 
 Through this in-depth analysis of the results, FEN can be conceptualized in relation to standard Attention:
 
-1. **Read-Time vs. Write-Time Selection:** Standard Attention (Bahdanau or Transformer) achieves selective memory routing at **read-time**—it must store all past hidden states in $O(N)$ memory and search them using a Query-Key dot product. In contrast, FEN acts as a **Write-Time Compressed Attention** mechanism. It uses proposal gates ($g_t$) to select and route key features on the fly, folding them into a single $O(1)$ escrow vault.
+1. **Read-Time vs. Write-Time Selection:** Standard Attention (Bahdanau or Transformer) achieves selective memory routing at **read-time** (it must store all past hidden states in $O(N)$ memory and search them using a Query-Key dot product). In contrast, FEN acts as a **Write-Time Compressed Attention** mechanism. It uses proposal gates ($g_t$) to select and route key features on the fly, folding them into a single $O(1)$ escrow vault.
 2. **Decoupled $O(1)$ Memory:** Unlike LSTMs, which also attempt write-time selection but immediately overwrite the memory by storing it in the active processing path ($h_t$), FEN isolates the selected features in $E_t$.
 3. **The Efficiency Trade-Off:** This research demonstrates that for tasks requiring accumulation, counting (like `distracted`), or ordered scans (like `smnist`), we do not need the memory or computational overhead of read-time search. By moving selection to the write stage and protecting the memory in an isolated $O(1)$ vault, FEN outperforms LSTMs by large margins while remaining just as computationally cheap.
 
@@ -654,12 +653,12 @@ Through this in-depth analysis of the results, FEN can be conceptualized in rela
 
 | Setting | Prefer |
 |---------|--------|
-| Dual-role / static facts | **`fen_bag`** (escrow); deplete **optional** for peak — prefer if you care about lean pipe |
+| Dual-role / static facts | **`fen_bag`** (escrow); deplete **optional** for peak (prefer if you care about lean pipe) |
 | Exact ordered multi-token out | hard / slot |
 | Long ordered classification (digits, long scans) | **`fen_roll`** (± deplete; deplete not required for early sMNIST) |
 | Sequential CIFAR (ranking) | **`fen_roll`** + **patch-2** (\(T=256\)); P4/P8 as compression checks |
 | Raster / short-token peak chase | `fen_hybrid` optional; early accuracy often worse than pure roll |
-| Deplete always? | **No** — pipe hygiene; accuracy effect flips by task/budget (§12) |
+| Deplete always? | **No** (pipe hygiene; accuracy effect flips by task/budget; see §12) |
 | Multi-pass / reinject as default | **No** |
 
 ### Not claimed
@@ -669,7 +668,7 @@ Through this in-depth analysis of the results, FEN can be conceptualized in rela
 - That roll is a substitute for real CNNs or competitive CIFAR vision  
 - That roll always beats bag (wrong job → bag wins dual-role)  
 - That deplete is required for dual-role or for roll’s early learning  
-- That LSTM can never match a final number with unlimited tuning — **early-learning and efficiency** gaps remain the architectural point  
+- That LSTM can never match a final number with unlimited tuning; the **early-learning and efficiency** gaps remain the architectural point  
 - That short-patch sequential CIFAR is the best place to rank write modes (use longer scans / P2 for that)
 
 ---
@@ -702,8 +701,8 @@ Deps: `torch`, `numpy`; `pandas` for some data paths (see `requirements.txt`).
 
 ## 15. Summary
 
-Feature-Escrow Networks keep an active residual **pipe** and an external **escrow**: resolved features are gated into the archive, optionally removed from the pipe (**deplete**), then **read** when needed—like clearing nutrients from the intestinal lumen into the bloodstream.
+Feature-Escrow Networks keep an active residual **pipe** and an external **escrow**: resolved features are gated into the archive, optionally removed from the pipe (**deplete**), then **read** when needed (like clearing nutrients from the intestinal lumen into the bloodstream).
 
 On synthetic probes that isolate dual-role retention and exact ordered memory, residual networks and LSTMs remain near chance while topology-matched FEN modes reach high accuracy (**bag** dual-role, **slots** exact order). On long sequential digit streams, **channel-roll** is the most consistent write: strong **epoch-1/2 and peak** on raster sMNIST and pMNIST, with or **without** deplete (roll_nodep ep1≈0.69). Hybrid can edge peak on pure raster but loses early under permutation. The story is **ordered non-commutative escrow**, not mainly local CNN-like deposits.
 
-On **sequential CIFAR-100** (~100k, not CNN vision), **tokenization sets sequential stress**: short/fat patches (P8/P4) compress architecture gaps and hit a ~20% wall; long/thin patches (P2) reopen **roll ≫ bag**. **Deplete** consistently trims pipe norms but is **not** a universal accuracy switch—escrow **write** and **topology match** remain the load-bearing claims. **Early accuracy** is the sharpest ranking signal across domains.
+On **sequential CIFAR-100** (~100k, not CNN vision), **tokenization sets sequential stress**: short/fat patches (P8/P4) compress architecture gaps and hit a ~20% wall; long/thin patches (P2) reopen **roll ≫ bag**. **Deplete** consistently trims pipe norms but is **not** a universal accuracy switch; escrow **write** and **topology match** remain the load-bearing claims. **Early accuracy** is the sharpest ranking signal across domains.
