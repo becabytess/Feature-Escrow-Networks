@@ -55,8 +55,10 @@ MODEL_ORDER = [
     "standard_hrnn",
     "standard_hrnn_residual",
     "standard_hgru",
-    "fen_roll_hierarchical",
-    "fen_sandwich_hierarchical",
+    "fen_roll_rnn_hierarchical",
+    "fen_sandwich_rnn_hierarchical",
+    "fen_roll_gru_hierarchical",
+    "fen_sandwich_gru_hierarchical",
 ]
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -312,7 +314,7 @@ class FENRoll(nn.Module):
         return logits
 
 
-class FENHierarchicalSandwich(nn.Module):
+class FENSandwichRNNHierarchical(nn.Module):
     def __init__(self, input_dim, hidden_dim, num_classes, num_chunks=32):
         super().__init__()
         self.hdim = hidden_dim
@@ -516,7 +518,7 @@ class FENRollBlock(nn.Module):
         return h, E
 
 
-class FENRollHierarchical(nn.Module):
+class FENRollRNNHierarchical(nn.Module):
     def __init__(self, input_dim, hidden_dim, num_classes, num_chunks=32):
         super().__init__()
         self.hdim = hidden_dim
@@ -593,13 +595,161 @@ class StandardHGRU(nn.Module):
         return logits
 
 
+class FENRollGRUBlock(nn.Module):
+    def __init__(self, input_dim, hidden_dim):
+        super().__init__()
+        self.hdim = hidden_dim
+        self.gru_cell = nn.GRUCell(input_dim, hidden_dim)
+        self.gate = nn.Linear(hidden_dim, hidden_dim)
+        self.v_proj = nn.Linear(hidden_dim, hidden_dim)
+        self.roll_gate = nn.Linear(hidden_dim, 1)
+
+    def forward(self, x):
+        B, T, _ = x.shape
+        h = x.new_zeros(B, self.hdim, device=x.device, dtype=x.dtype)
+        E = x.new_zeros(B, self.hdim, device=x.device, dtype=x.dtype)
+        for t in range(T):
+            xt = x[:, t]
+            h = self.gru_cell(xt, h)
+            g = torch.sigmoid(self.gate(h))
+            D = g * h
+            v = self.v_proj(D)
+            h = h - D
+            gamma = torch.sigmoid(self.roll_gate(h))
+            E = (1.0 - gamma) * E + gamma * torch.roll(E, shifts=1, dims=-1) + v
+        return h, E
+
+
+class FENRollGRUHierarchical(nn.Module):
+    def __init__(self, input_dim, hidden_dim, num_classes, num_chunks=32):
+        super().__init__()
+        self.hdim = hidden_dim
+        self.num_chunks = num_chunks
+        
+        self.local_fen = FENRollGRUBlock(input_dim, hidden_dim)
+        self.global_fen = FENRollGRUBlock(hidden_dim * 2, hidden_dim)
+        self.head = _mlp_head(hidden_dim * 2, num_classes)
+
+    def forward(self, x, return_stats=False):
+        B, T, C = x.shape
+        chunk_len = T // self.num_chunks
+        
+        # 1. Chunk and flatten
+        x_chunked = x.view(B, self.num_chunks, chunk_len, C)
+        x_flat = x_chunked.view(B * self.num_chunks, chunk_len, C)
+        
+        # 2. Local pass
+        h_local, E_local = self.local_fen(x_flat)
+        
+        # 3. Concatenate and assemble
+        chunk_combined = torch.cat([h_local, E_local], dim=-1) # [B * num_chunks, 2 * hdim]
+        chunk_seq = chunk_combined.view(B, self.num_chunks, self.hdim * 2)
+        
+        # 4. Global pass
+        h_global, E_global = self.global_fen(chunk_seq)
+        
+        logits = self.head(torch.cat([h_global, E_global], dim=-1))
+        if return_stats:
+            return logits, {
+                "pipe_norm": h_global.detach().norm(dim=-1).mean(),
+                "gate": x.new_tensor(float("nan")),
+                "escrow_norm": E_global.detach().norm(dim=-1).mean(),
+            }
+        return logits
+
+
+class FENSandwichGRUHierarchical(nn.Module):
+    def __init__(self, input_dim, hidden_dim, num_classes, num_chunks=32):
+        super().__init__()
+        self.hdim = hidden_dim
+        self.num_chunks = num_chunks
+        
+        # --- Local Sandwich (processes each row) ---
+        self.local_gru1 = nn.GRU(input_dim, hidden_dim, batch_first=True)
+        # FEN Roll compression params for local pass
+        self.local_gate = nn.Linear(hidden_dim, hidden_dim)
+        self.local_v_proj = nn.Linear(hidden_dim, hidden_dim)
+        self.local_roll_gate = nn.Linear(hidden_dim, 1)
+        self.local_gru2 = nn.GRU(input_dim, hidden_dim, batch_first=True)
+        
+        # --- Global Sandwich ---
+        self.global_gru1 = nn.GRU(hidden_dim * 2, hidden_dim, batch_first=True)
+        # FEN Roll compression params for global pass
+        self.global_gate = nn.Linear(hidden_dim, hidden_dim)
+        self.global_v_proj = nn.Linear(hidden_dim, hidden_dim)
+        self.global_roll_gate = nn.Linear(hidden_dim, 1)
+        self.global_gru2 = nn.GRU(hidden_dim * 2, hidden_dim, batch_first=True)
+        
+        self.head = _mlp_head(hidden_dim * 2, num_classes)
+
+    def forward(self, x, return_stats=False):
+        B, T, C = x.shape
+        chunk_len = T // self.num_chunks
+        
+        # 1. Chunk and flatten
+        x_chunked = x.view(B, self.num_chunks, chunk_len, C)
+        x_flat = x_chunked.view(B * self.num_chunks, chunk_len, C)
+        
+        # 2. Local Pass 1
+        H1_local, _ = self.local_gru1(x_flat)
+        
+        # 3. Local FEN Roll Compression
+        E_local = x.new_zeros(B * self.num_chunks, self.hdim)
+        for t in range(chunk_len):
+            ht = H1_local[:, t]
+            g = torch.sigmoid(self.local_gate(ht))
+            D = g * ht
+            v = self.local_v_proj(D)
+            gamma = torch.sigmoid(self.local_roll_gate(ht))
+            E_local = (1.0 - gamma) * E_local + gamma * torch.roll(E_local, shifts=1, dims=-1) + v
+            
+        # 4. Local Pass 2 (initialized with E_local)
+        h0_local = E_local.unsqueeze(0)
+        _, hn_local2 = self.local_gru2(x_flat, h0_local)
+        chunk_summaries = hn_local2[-1] # (B * num_chunks, hdim)
+        
+        # 5. Assemble sequence representations: concatenate active state and escrow state
+        E_local_seq = E_local.view(B, self.num_chunks, self.hdim)
+        chunk_seq_raw = chunk_summaries.view(B, self.num_chunks, self.hdim)
+        chunk_seq = torch.cat([chunk_seq_raw, E_local_seq], dim=-1) # [B, num_chunks, 2 * hdim]
+        
+        # 6. Global Pass 1
+        H1_global, _ = self.global_gru1(chunk_seq)
+        
+        # 7. Global FEN Roll Compression
+        E_global = x.new_zeros(B, self.hdim)
+        for t in range(self.num_chunks):
+            ht = H1_global[:, t]
+            g = torch.sigmoid(self.global_gate(ht))
+            D = g * ht
+            v = self.global_v_proj(D)
+            gamma = torch.sigmoid(self.global_roll_gate(ht))
+            E_global = (1.0 - gamma) * E_global + gamma * torch.roll(E_global, shifts=1, dims=-1) + v
+            
+        # 8. Global Pass 2 (initialized with E_global)
+        h0_global = E_global.unsqueeze(0)
+        _, hn_global2 = self.global_gru2(chunk_seq, h0_global)
+        h_last = hn_global2[-1] # (B, hdim)
+        
+        logits = self.head(torch.cat([h_last, E_global], dim=-1))
+        if return_stats:
+            return logits, {
+                "pipe_norm": h_last.detach().norm(dim=-1).mean(),
+                "gate": x.new_tensor(float("nan")),
+                "escrow_norm": E_global.detach().norm(dim=-1).mean(),
+            }
+        return logits
+
+
 # ------------------------------ BUILD & PARAMS MATCH --------------------------
 MODEL_SPECS = {
     "standard_hrnn": dict(kind="standard_hrnn"),
     "standard_hrnn_residual": dict(kind="standard_hrnn_residual"),
     "standard_hgru": dict(kind="standard_hgru"),
-    "fen_roll_hierarchical": dict(kind="fen_roll_hierarchical"),
-    "fen_sandwich_hierarchical": dict(kind="fen_sandwich_hierarchical"),
+    "fen_roll_rnn_hierarchical": dict(kind="fen_roll_rnn_hierarchical"),
+    "fen_sandwich_rnn_hierarchical": dict(kind="fen_sandwich_rnn_hierarchical"),
+    "fen_roll_gru_hierarchical": dict(kind="fen_roll_gru_hierarchical"),
+    "fen_sandwich_gru_hierarchical": dict(kind="fen_sandwich_gru_hierarchical"),
 }
 
 
@@ -611,10 +761,14 @@ def build(name, input_dim, num_classes, hidden_dim):
         return StandardHRNNResidual(input_dim, hidden_dim, num_classes)
     if spec["kind"] == "standard_hgru":
         return StandardHGRU(input_dim, hidden_dim, num_classes)
-    if spec["kind"] == "fen_roll_hierarchical":
-        return FENRollHierarchical(input_dim, hidden_dim, num_classes)
-    if spec["kind"] == "fen_sandwich_hierarchical":
-        return FENHierarchicalSandwich(input_dim, hidden_dim, num_classes)
+    if spec["kind"] == "fen_roll_rnn_hierarchical":
+        return FENRollRNNHierarchical(input_dim, hidden_dim, num_classes)
+    if spec["kind"] == "fen_sandwich_rnn_hierarchical":
+        return FENSandwichRNNHierarchical(input_dim, hidden_dim, num_classes)
+    if spec["kind"] == "fen_roll_gru_hierarchical":
+        return FENRollGRUHierarchical(input_dim, hidden_dim, num_classes)
+    if spec["kind"] == "fen_sandwich_gru_hierarchical":
+        return FENSandwichGRUHierarchical(input_dim, hidden_dim, num_classes)
     raise ValueError(name)
 
 
