@@ -557,17 +557,18 @@ $$
 
 This is evaluated under a strict **~100k parameters target budget** and compared across 4 hierarchical variants using vanilla `nn.RNN` cells (to match model capacity):
 
-| Model | Best Acc | Epoch 1 | Epoch 2 | Epoch 15 | Hidden | Params |
+| Model | Best (15 ep) | Best (40 ep) | Epoch 1 | Epoch 2 | Hidden | Params |
 |---|---:|---:|---:|---:|---:|---:|
-| **`standard_hrnn`** | 0.0536 | 0.0218 | 0.0374 | 0.0520 | 149 | 99746 |
-| **`standard_hrnn_residual`** | 0.0536 | 0.0273 | 0.0324 | 0.0540 | 149 | 99746 |
-| **`fen_roll_hierarchical`** | **0.2188** | **0.1038** | **0.1429** | 0.2080 | 89 | 100339 |
-| **`fen_sandwich_hierarchical`** | **0.2366** | **0.0871** | **0.1468** | **0.2320** | 74 | 99166 |
+| **`standard_hrnn`** | 0.0536 | 0.0536 | 0.0218 | 0.0374 | 149 | 99746 |
+| **`standard_hrnn_residual`** | 0.0536 | 0.0536 | 0.0273 | 0.0324 | 149 | 99746 |
+| **`fen_roll_hierarchical`** | 0.2188 | **0.2338** | **0.1038** | 0.1429 | 89 | 100339 |
+| **`fen_sandwich_hierarchical`** | **0.2366** | **0.2394** | 0.0871 | **0.1468** | 74 | 99166 |
 
 ```text
 Hierarchical FEN variants (roll and sandwich) completely crush standard Hierarchical RNNs (which fail at 5.36% accuracy).
-`fen_roll_hierarchical` shows the strongest early learning jump (Epoch 1: 10.38%).
-`fen_sandwich_hierarchical` scales up to 23.66% accuracy at Epoch 13.
+`fen_roll_hierarchical` shows the strongest early learning jump (Epoch 1: 10.38%) and converges faster (best at Ep 17).
+`fen_sandwich_hierarchical` reaches a slightly higher peak (23.94% at Ep 21) but takes longer.
+Given the minimal accuracy difference (0.56%) and simpler single-pass flow, `fen_roll_hierarchical` is the preferred default for long sequential scaling.
 ```
 
 ### CIFAR defaults (after exp10–11)
@@ -665,7 +666,7 @@ rank architectures primarily by write + early/peak accuracy.
 8. **Early accuracy is first-class evidence** of gradient usefulness and architectural stability. A late catch-up does not make two models equal.  
 9. On **sequential CIFAR-100**, ranking **transfers** under high sequential stress: **regime map P8→P4→P2** shows compressed gaps at short/fat tokens and **roll ≫ bag** at long/thin (P2 bag ~chance).  
 10. **Deplete is optional pipe hygiene**, not a universal accuracy law: can hurt peak on dual-role @12 ep and on sMNIST bag; not required for roll’s sMNIST early signal; usually leaner pipe (§12).  
-11. **FEN Sandwich (Double-Pass) is the superior readout topology.** In a strict head-to-head comparison on $T=1024$ CIFAR-100, the Hierarchical Sandwich (`23.66%`) significantly outperforms the single-pass Hierarchical FEN-Roll (`21.88%`). This confirms that running a dedicated second pass initialized by the compiled escrow (context-priming) is structurally superior to simply concatenating active and escrow states at the end of a single run.  
+11. **FEN Sandwich (Double-Pass) vs FEN Roll (Single-Pass) in Hierarchical Readout.** While the double-pass Sandwich model reaches a slightly higher peak (23.94% vs 23.38% on $T=1024$ CIFAR-100), the difference is minor (0.56%). FEN Roll has a better early learning jump (Epoch 1: 10.38% vs 8.71%), higher hidden state capacity (89 vs 74) under the parameter budget, and faster convergence (peak at Epoch 17 vs 21). This makes the single-pass FEN Roll a highly practical default for hierarchical sequence scaling.  
 12. **Hierarchy makes long sequences trainable.** Dividing long sequence scans ($T=1024$) into local/global chunks ($K=32$) yields a massive 15x–20x training speedup due to parallel GPU occupancy. This transforms long-scan sequential models from untrainable or glacially slow loops into highly stable, fast-converging layouts.
 
 ### Architectural Insight: FEN as Write-Time Compressed Attention
