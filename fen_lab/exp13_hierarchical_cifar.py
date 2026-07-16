@@ -54,6 +54,7 @@ CUDA_GRAPH_WARMUP_STEPS = 3
 MODEL_ORDER = [
     "standard_hrnn",
     "standard_hrnn_residual",
+    "standard_hgru",
     "fen_roll_hierarchical",
     "fen_sandwich_hierarchical",
 ]
@@ -553,10 +554,50 @@ class FENRollHierarchical(nn.Module):
         return logits
 
 
+class StandardHGRU(nn.Module):
+    def __init__(self, input_dim, hidden_dim, num_classes, num_chunks=32):
+        super().__init__()
+        self.hdim = hidden_dim
+        self.num_chunks = num_chunks
+        
+        self.local_gru = nn.GRU(input_dim, hidden_dim, batch_first=True)
+        self.global_gru = nn.GRU(hidden_dim, hidden_dim, batch_first=True)
+        self.head = _mlp_head(hidden_dim, num_classes)
+
+    def forward(self, x, return_stats=False):
+        B, T, C = x.shape
+        chunk_len = T // self.num_chunks
+        
+        # 1. Chunk and flatten
+        x_chunked = x.view(B, self.num_chunks, chunk_len, C)
+        x_flat = x_chunked.view(B * self.num_chunks, chunk_len, C)
+        
+        # 2. Local pass
+        _, hn_local = self.local_gru(x_flat)
+        chunk_summaries = hn_local[-1] # (B * num_chunks, hdim)
+        
+        # 3. Assemble sequence of summaries
+        chunk_seq = chunk_summaries.view(B, self.num_chunks, self.hdim)
+        
+        # 4. Global pass
+        _, hn_global = self.global_gru(chunk_seq)
+        h_last = hn_global[-1] # (B, hdim)
+        
+        logits = self.head(h_last)
+        if return_stats:
+            return logits, {
+                "pipe_norm": h_last.detach().norm(dim=-1).mean(),
+                "gate": x.new_tensor(float("nan")),
+                "escrow_norm": x.new_tensor(float("nan")),
+            }
+        return logits
+
+
 # ------------------------------ BUILD & PARAMS MATCH --------------------------
 MODEL_SPECS = {
     "standard_hrnn": dict(kind="standard_hrnn"),
     "standard_hrnn_residual": dict(kind="standard_hrnn_residual"),
+    "standard_hgru": dict(kind="standard_hgru"),
     "fen_roll_hierarchical": dict(kind="fen_roll_hierarchical"),
     "fen_sandwich_hierarchical": dict(kind="fen_sandwich_hierarchical"),
 }
@@ -568,6 +609,8 @@ def build(name, input_dim, num_classes, hidden_dim):
         return StandardHRNN(input_dim, hidden_dim, num_classes)
     if spec["kind"] == "standard_hrnn_residual":
         return StandardHRNNResidual(input_dim, hidden_dim, num_classes)
+    if spec["kind"] == "standard_hgru":
+        return StandardHGRU(input_dim, hidden_dim, num_classes)
     if spec["kind"] == "fen_roll_hierarchical":
         return FENRollHierarchical(input_dim, hidden_dim, num_classes)
     if spec["kind"] == "fen_sandwich_hierarchical":
