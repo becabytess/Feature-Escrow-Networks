@@ -550,6 +550,7 @@ residual:       lives at P8 (0.13) → dies as T grows (0.08 → 0.06), fat pipe
 To completely bypass sequential bottlenecks and evaluate FEN under extreme sequential stress ($T=1024$ steps, pixel-by-pixel CIFAR-100), we implement a **Hierarchical FEN** (Divide & Conquer over time). 
 
 By splitting the 1024-step sequence into $K=32$ chunks of length 32, we run a local pass inside each chunk (batch dimension $B \times 32$, sequence length 32) and a global pass across the 32 chunks. We concatenate the final active state and the local escrow of each chunk to form the sequence representation for the global pass:
+
 $$\text{chunk\_seq}_t = [h_{\text{final\_local}, t}, E_{\text{local}, t}] \quad (\text{shape: } [B, \text{num\_chunks}, 2 \times H])$$
 
 This is evaluated under a strict **~100k parameters target budget** and compared across 4 hierarchical variants using vanilla `nn.RNN` cells (to match model capacity):
