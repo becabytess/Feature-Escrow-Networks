@@ -28,4 +28,5 @@ Deps: `torch`, `numpy`; `pandas` for some loaders (CIFAR/MNIST CSV).
 | 11 | `exp11_stress_curve.py` | Regime map: CIFAR patches 8→4→2 |
 | 12 | `exp12_deplete_law.py` | bag/roll × deplete (distracted; optional sMNIST) |
 | 12b | `exp12b_roll_nodep_smnist.py` | sMNIST roll **without** deplete (early signal) |
+| 13 | `exp13_hierarchical_cifar.py` | Hierarchical vanilla RNNs vs Hierarchical FEN (roll & sandwich) on T=1024 pixel CIFAR-100 |
 
