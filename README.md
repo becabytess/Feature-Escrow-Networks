@@ -293,7 +293,7 @@ Deplete: slightly leaner pipe; not the reason roll beats bag.
 
 ---
 
-## 9. LSTM honesty sweep ([`exp08b`](fen_lab/exp08b_lstm_smnist_sweep.py))
+## 9. LSTM  ([`exp08b`](fen_lab/exp08b_lstm_smnist_sweep.py))
 
 exp08’s 1-layer LSTM @10 ep sat near chance. A dedicated sweep tests whether that was only under-training.
 
@@ -309,7 +309,7 @@ exp08’s 1-layer LSTM @10 ep sat near chance. A dedicated sweep tests whether t
 | lstm_2L_drop | 0.774 | 0.10 | 0.15 | ep13 | - |
 | **lstm_3L (best)** | **0.802** | 0.10 | 0.23 | ep15 | **ep30** |
 
-### FEN vs best LSTM (honest comparison)
+### FEN vs best LSTM 
 
 | | fen_roll (exp08) | fen_hybrid (exp08) | best LSTM 3L (exp08b) |
 |--|-----------------:|-------------------:|----------------------:|
@@ -322,7 +322,7 @@ exp08’s 1-layer LSTM @10 ep sat near chance. A dedicated sweep tests whether t
 
 1. **FEN beats LSTM** on this hard sequential protocol: higher peak with **far fewer** epochs.  
 2. LSTM is **not** permanently stuck at chance if given depth and time; 3L reaches ~0.80 at ep30.  
-3. That does **not** erase the architectural gap: even if an LSTM later reached a high final score, **early accuracy** shows it struggles to move useful signal in the first epochs. Roll is already at **0.80 by epoch 2**, where the best LSTM is still ~0.23 after a full honesty sweep.  
+3. That does **not** erase the architectural gap: even if an LSTM later reached a high final score, **early accuracy** shows it struggles to move useful signal in the first epochs. Roll is already at **0.80 by epoch 2**, where the best LSTM is still ~0.23 after a full sweep.  
 4. On more complex or longer data, architectures that only “eventually” learn with deep stacks and long schedules tend to degrade more; early dynamics are a leading indicator of that stress.
 
 ```text
