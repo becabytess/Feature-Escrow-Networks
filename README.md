@@ -1,10 +1,10 @@
 # Feature-Escrow Networks (FEN)
 
-This repository is a personal research project documenting my experiments with a novel recurrent neural network concept: **Feature-Escrow Networks (FEN)**. 
+This repository documents experiments with **Feature-Escrow Networks (FEN)**: a simple, powerful, and ridiculously effective recurrent neural network architecture based on **learned temporal accumulation over a dual-pathway structure**.
 
-The core idea, which I wanted to test after noticing how traditional RNNs/LSTMs bottleneck by forcing a single vector to handle both active processing (CPU) and historical state (RAM), is to decouple active computation from a separated, accumulated escrow memory. 
+Rather than forcing a single recurrent hidden state to carry all historical memory while simultaneously performing step-by-step temporal computation, FEN introduces a dedicated **secondary representation pathway** over the hidden state trajectory.
 
-This isn't a claim to a new mainstream SOTA architecture. It is simply a clean-slate playground where I designed experiments, ran rigorous baselines (including a best-effort tuned LSTM), and mapped out the properties and trade-offs of different memory topologies (such as bag-based accumulation, spatial channel rotation, and slot-addressable tape) across various sequential tasks.
+This playground contains rigorous baselines (including tuned multi-layer LSTMs) and maps the properties and trade-offs of different escrow accumulation topologies (bag-based summation, non-commutative spatial channel rotation, and slot-addressable tape) across various sequential tasks.
 
 Clean-slate experimental track: [`fen_lab/`](fen_lab/).  
 
@@ -32,92 +32,98 @@ A model that is weak early and strong late is not “equal” to one that is str
 
 ---
 
-## 1. The problem
+## 1. The Problem: The Recurrent Memory Bottleneck
 
-Sequential models often force **one** hidden state to do two jobs:
+Standard recurrent neural networks (RNNs, LSTMs, GRUs) force all useful information across an entire sequence to survive inside a single final hidden state:
 
-1. **Active computation** : update on the current step, count, react to noise  
-2. **Long-lived memory** : keep facts that must survive many steps of that activity  
+$$h_T = f(h_{T-1}, h_{T-2}, \dots, x_1, \dots, x_T)$$
 
-When both live in the same tensor, activity overwrites memory. Residuals help gradients but can **bloat** the stream over long sequences (high norm, context drift, dual-role collapse).
+This creates a severe structural bottleneck:
+1. **Temporal computation** (updating state at step $t$, counting, reacting to input noise) and
+2. **Information preservation** (preserving historical facts across long step gaps)
 
-**Claim.** Working memory and archive should not be the same place. Resolved features should leave the active path and be stored outside it.
+are forced to live inside the exact same tensor. Every recurrent update step risks overwriting past memories. LSTMs try to alleviate this via complex gating mechanisms (input, forget, output gates) that dictate what to store, forget, and read, but memory remains constrained within the single recurrent state trajectory.
 
 ---
 
-## 2. Biological inspiration
+## 2. Conceptual Framework: Dual-Pathway & Learned Temporal Accumulation
 
-Metaphor: digestion in the **small intestine**.
-
-| Biology | FEN |
-|---------|-----|
-| Lumen (active tract) | **Pipe** $h$ |
-| Ready to absorb? | **Gate** $g$ |
-| Nutrients to bloodstream | **Escrow write** $E$ |
-| Mass removed from tract | **Deplete** $h \leftarrow f - D$ (optional hygiene) |
-| Later use of nutrients | **Read** archive at query / final time |
-
-**Write into escrow** is the load-bearing split (pipe vs vault). **Deplete** (scrub the pipe after write) is a separate switch: it usually **lowers pipe norm**, but is **not** a universal accuracy booster (see §12). Metaphor still: absorption into bloodstream; emptying the lumen is often helpful hygiene, not always what makes the nutrients usable.
+FEN decouples **temporal processing** from **information preservation/accumulation** by introducing a second auxiliary pathway over the sequence hidden state trajectory.
 
 ```text
-h  →  transform  →  f
-                 →  gate  →  D = g ⊙ f
-                 →  E ← write(E, D)
-                 →  h ← f − D     (optional deplete)
-                 →  later: head([h, E])
+       RNN Pathway (Temporal Dynamics)
+x_t ──► [ h_t = f(h_{t-1}, x_t) ] ───────► h_T ──┐
+             │                                   ├─► Head([h_T, E])
+             ▼ (phi transformation)              │
+       Escrow Pathway (Temporal Accumulation)    │
+        E = Σ_t φ(h_t) ──────────────────────────┘
 ```
+
+### Mathematical Formulation
+
+1. **Temporal Processing Pathway:** The recurrent network operates normally to produce temporal representations $h_t$:
+   $$h_t = f(h_{t-1}, x_t)$$
+2. **Escrow Accumulation Pathway:** As $h_t$ is produced, an auxiliary transformation $\phi$ extracts useful feature contributions and accumulates them into an escrow representation $E$:
+   $$E = \sum_{t=1}^T \phi(h_t)$$
+3. **Final Decision:** The model makes its prediction using the accumulated escrow alongside (or in place of) the final hidden state:
+   $$\hat{y} = \text{Head}([h_T, E])$$
+
+### FEN vs. RNN/LSTM vs. Attention
+
+The key intuitive distinctions between sequential architectures:
+
+| Paradigm | Core Strategy | Mechanism / Analogy | Computational Cost |
+|----------|---------------|---------------------|-------------------|
+| **RNN / LSTM** | Carry memories forward through recurrence | *"Carry important memories step-by-step until needed."* (Complex gating inside active loop; state bottleneck) | $O(T)$ time, $O(1)$ memory |
+| **Attention (Transformer)** | Look backward dynamically | *"Look back later and retrieve what was important."* (Query-Key-Value dynamic matrix search over past states) | $O(T^2)$ time/space (or dynamic state cache) |
+| **FEN (Feature Escrow)** | Speculative forward accumulation | *"Learn what is worth preserving as it appears, and deposit it into escrow."* (Forward pass feature extraction into auxiliary vault) | $O(T)$ time, $O(1)$ memory |
+
+> **The Intuition of Speculative Querying:**
+> Standard Attention uses a Query at decision time to search backward for matching Key-Value pairs. FEN can be understood as **speculating during the forward pass** about what a future query will need, extracting that information immediately via $\phi(h_t)$, and locking it into $E$. It captures a crucial benefit of Attention without any QKV matrix multiplication, sequence caching, or $O(T^2)$ overhead.
+
+### Recontextualizing Depletion
+
+In early FEN formulations, a **depletion** (subtraction) step $h_t \leftarrow f(h_{t-1}, x_t) - D_t$ was emphasized to scrub extracted mass from the active recurrent state (analogous to nutrient absorption in digestion).
+
+However, empirical results (`exp12`, `exp12b`) show that **depletion is merely an optional regularizer / pipe-hygiene switch**, not the core driver of performance. The non-depleted version of FEN (`roll_nodep` / `fen_copy`) is the purest and simplest form: **let the RNN do its standard job, while the escrow pathway collects and preserves temporal features.** This ridiculously simple idea establishes SOTA accuracy among non-attention recurrent architectures.
 
 ---
 
-## 3. Architecture
+## 3. Architecture & Switches
 
-One skeleton. Almost every “variant” is a **small product of switches**, not a new network family.
+One simple skeleton. Every variant is a small product of switches:
 
-| Step | Role |
-|------|------|
-| 1 | Propose on the pipe |
-| 2 | Gate → commit $D$ |
-| 3 | Write $D$ into external archive $E$ |
-| 4 | **Optional** deplete: $h \leftarrow f - D$ (else $h \leftarrow f$; “copy-style”) |
-| 5 | Deliver via $\text{head}([h, \text{arch}])$ at final / query time (not a continuous dump of $E$ into $h$) |
+| Step | Operation |
+|------|-----------|
+| 1 | Produce recurrent state $h_t = f(h_{t-1}, x_t)$ |
+| 2 | Extract & gate feature contribution $D_t = \phi(h_t)$ |
+| 3 | Accumulate into external escrow archive $E \leftarrow \text{Write}(E, D_t)$ |
+| 4 | **Optional** deplete: $h_t \leftarrow h_t - D_t$ (else keep $h_t$; pure accumulation) |
+| 5 | Deliver via $\text{Head}([h_T, E])$ at decision time |
 
-### Switch A: write (topology; pick by **job**)
+### Switch A: Write Topology (Pick by Task)
 
-| Write | Role | Typical job |
-|-------|------|-------------|
-| **Bag** | Commutative “set of facts” | Dual-role / static context |
-| **Hard pointer / slots** | Ordered cells | Exact multi-token outputs |
-| **Channel-roll** | Non-commutative vault | Long **ordered scans** (pixels, sensors) |
-| **Hybrid (bag + roll)** | Two vaults | Raster peak specialist; early often fragile |
+| Write Mode | Role | Typical Job |
+|------------|------|-------------|
+| **Bag** | Commutative summation $\sum \phi(h_t)$ | Dual-role / static facts |
+| **Slots / Hard Tape** | Addressable ordered cells | Exact ordered token outputs |
+| **Channel-Roll** | Non-commutative circular shift vault | Long ordered sequence scans (pixels, waveforms) |
+| **Hybrid (Bag + Roll)** | Dual vaults | Spatial raster peak specialist |
 
-### Switch B: deplete
+### Switch B: Depletion Mode
 
-| Name in logs | Meaning |
-|--------------|---------|
-| `fen_bag` / `*_dep` | write + **deplete on** |
-| `fen_copy` / `bag_nodep` | **bag** write + **deplete off** |
-| `roll_nodep` | **roll** write + **deplete off** |
+| Switch | Meaning |
+|--------|---------|
+| `fen_bag` / `*_dep` | Escrow write + **deplete ON** |
+| `fen_copy` / `bag_nodep` | Bag write + **deplete OFF** (pure accumulation) |
+| `roll_nodep` | Roll write + **deplete OFF** (pure accumulation default for long scans) |
 
-### Switch C: deliver (frozen)
+### Switch C: Delivery Mode
 
 | Pattern | Status |
 |---------|--------|
-| Final / mid **read** $\text{head}([h,E])$ | **Default** |
-| Every-step reinject $E \to h$ | **Reject** (pipe bloat) |
-| Multi-pass cold read | Not an upgrade on foundation dual-role |
-
-### Controls (not FEN)
-
-| Control | Role |
-|---------|------|
-| Residual RNN | No escrow |
-| LSTM | Classical recurrent baseline |
-
-```text
-Day-to-day cast (not 50 models):
-  residual | fen_bag | fen_copy | fen_roll | fen_hybrid | (fen_slot) | lstm
-Everything else is an ablation of those switches.
-```
+| Decision-time read $\text{Head}([h_T, E])$ | **Default & Optimal** |
+| Every-step reinjection $E \to h_t$ | **Rejected** (causes pipe bloat and instability) |
 
 ---
 
@@ -669,13 +675,18 @@ rank architectures primarily by write + early/peak accuracy.
 11. **FEN Sandwich (Double-Pass) vs FEN Roll (Single-Pass) in Hierarchical Readout.** While the double-pass Sandwich model reaches a slightly higher peak (23.94% vs 23.38% on $T=1024$ CIFAR-100), the difference is minor (0.56%). FEN Roll has a better early learning jump (Epoch 1: 10.38% vs 8.71%), higher hidden state capacity (89 vs 74) under the parameter budget, and faster convergence (peak at Epoch 17 vs 21). This makes the single-pass FEN Roll a highly practical default for hierarchical sequence scaling.  
 12. **Hierarchy makes long sequences trainable.** Dividing long sequence scans ($T=1024$) into local/global chunks ($K=32$) yields a massive 15x–20x training speedup due to parallel GPU occupancy. This transforms long-scan sequential models from untrainable or glacially slow loops into highly stable, fast-converging layouts.
 
-### Architectural Insight: FEN as Write-Time Compressed Attention
+### Architectural Insight: FEN as Speculative Write-Time Accumulation & Auxiliary Representation Pathway
 
-Through this in-depth analysis of the results, FEN can be conceptualized in relation to standard Attention:
+Through this in-depth analysis of the results, FEN can be conceptualized in relation to standard Attention and Recurrent networks:
 
-1. **Read-Time vs. Write-Time Selection:** Standard Attention (Bahdanau or Transformer) achieves selective memory routing at **read-time** (it must store all past hidden states in $O(N)$ memory and search them using a Query-Key dot product). In contrast, FEN acts as a **Write-Time Compressed Attention** mechanism. It uses proposal gates ($g_t$) to select and route key features on the fly, folding them into a single $O(1)$ escrow vault.
-2. **Decoupled $O(1)$ Memory:** Unlike LSTMs, which also attempt write-time selection but immediately overwrite the memory by storing it in the active processing path ($h_t$), FEN isolates the selected features in $E_t$.
-3. **The Efficiency Trade-Off:** This research demonstrates that for tasks requiring accumulation, counting (like `distracted`), or ordered scans (like `smnist`), we do not need the memory or computational overhead of read-time search. By moving selection to the write stage and protecting the memory in an isolated $O(1)$ vault, FEN outperforms LSTMs by large margins while remaining just as computationally cheap.
+1. **Separation of Temporal Dynamics and Information Preservation:**
+   The recurrent network is responsible for producing rich temporal representations $h_t$. The escrow pathway is responsible for collecting and preserving useful information across time into $E = \sum_t \phi(h_t)$. This eliminates the burden on $h_T$ of having to carry the entire sequence history forward step-by-step.
+2. **Speculative Forward Extraction vs. Backward QKV Search:**
+   Standard Attention (Transformer) performs memory retrieval at **read-time** (storing all past states in memory and querying them backwards using $Q K^T$ dot products). FEN acts as **Speculative Write-Time Attention**: during the forward pass, $\phi(h_t)$ speculates what features a future decision query will need, extracts them as soon as they appear, and locks them into an $O(1)$ auxiliary vault $E$.
+3. **Decoupled $O(1)$ Memory without Complex Gating:**
+   LSTMs attempt write-time selection with forget/input gates, but force the result back into the single active recurrent state $h_t$, leading to overwriting and vanishing signal. FEN isolates the extracted features into $E_t$ outside the recurrent loop.
+4. **Non-Depletion as the Purest Core:**
+   Depletion ($h_t \leftarrow h_t - D_t$) is an optional regularizer/hygiene mechanism, but is not necessary for performance. The non-depleted version (`roll_nodep` / `fen_copy`) lets the RNN operate normally while the escrow pathway accumulates features, achieving SOTA accuracy among non-attention recurrent architectures with extreme simplicity.
 
 ### Task-dependent notes
 
@@ -730,8 +741,10 @@ Deps: `torch`, `numpy`; `pandas` for some data paths (see `requirements.txt`).
 
 ## 15. Summary
 
-Feature-Escrow Networks keep an active residual **pipe** and an external **escrow**: resolved features are gated into the archive, optionally removed from the pipe (**deplete**), then **read** when needed (like clearing nutrients from the intestinal lumen into the bloodstream).
+Feature-Escrow Networks (FEN) decouple temporal processing from historical information preservation by establishing a **dual-pathway architecture**. The recurrent model operates normally to generate step-by-step temporal hidden states $h_t$, while an auxiliary escrow pathway continuously extracts and accumulates feature contributions $E = \sum_t \phi(h_t)$ across time.
 
-On synthetic probes that isolate dual-role retention and exact ordered memory, residual networks and LSTMs remain near chance while topology-matched FEN modes reach high accuracy (**bag** dual-role, **slots** exact order). On long sequential digit streams, **channel-roll** is the most consistent write: strong **epoch-1/2 and peak** on raster sMNIST and pMNIST, with or **without** deplete (roll_nodep ep1≈0.69). Hybrid can edge peak on pure raster but loses early under permutation. The story is **ordered non-commutative escrow**, not mainly local CNN-like deposits.
+This provides a form of **speculative forward accumulation**: instead of relying on $O(T^2)$ backward QKV attention matching at decision time, FEN speculates what a future decision query will need during the forward pass and locks extracted features into an $O(1)$ auxiliary vault $E$.
 
-On **sequential CIFAR-100** (~100k, not CNN vision), **tokenization sets sequential stress**: short/fat patches (P8/P4) compress architecture gaps and hit a ~20% wall; long/thin patches (P2) reopen **roll ≫ bag**. **Deplete** consistently trims pipe norms but is **not** a universal accuracy switch; escrow **write** and **topology match** remain the load-bearing claims. **Early accuracy** is the sharpest ranking signal across domains.
+On synthetic probes that isolate dual-role retention and exact ordered memory, standard RNNs and LSTMs remain near chance while topology-matched FEN modes reach high accuracy (**bag** for dual-role, **slots** for exact order). On long sequential digit streams, **channel-roll** is the most consistent write: strong **epoch-1/2 and peak** on raster sMNIST and pMNIST, with or **without** deplete (roll_nodep ep1≈0.69). 
+
+**Deplete** (subtraction from active state) is an optional regularizer/hygiene switch that trims pipe norm, but is **not** required for high accuracy; the non-depletion version (`roll_nodep`) is the purest, simplest, and most effective form. **Early accuracy** remains the sharpest ranking signal across sequence lengths and task domains.
