@@ -25,29 +25,19 @@ The original biological inspiration for **Feature-Escrow Networks** comes from t
 
 FEN formalizes this intuition by establishing a **dual-pathway architecture**:
 
-```text
-       RNN Pathway (Temporal Dynamics & Digestion)
-x_t ──► [ h_t = f(h_{t-1}, x_t) ] ───────► h_T ──┐
-             │                                   ├─► Head([h_T, E])
-             ▼ (phi extraction / absorption)     │
-       Escrow Pathway (Vault / Bloodstream)      │
-        E = Σ_t φ(h_t) ──────────────────────────┘
-```
-
-1. **Temporal Processing Pathway (Active Loop):** The recurrent network operates unconstrained to compute step-by-step temporal state transformations $h_t = f(h_{t-1}, x_t)$.
-2. **Escrow Accumulation Pathway (Auxiliary Vault):** An extraction transformation $\phi(h_t)$ absorbs ready features as they appear and deposits them into the escrow vault $E = \sum_{t=1}^T \phi(h_t)$.
-3. **Joint Decision Head:** The final prediction evaluates both active state and escrow vault: $\hat{y} = \text{Head}([h_T, E])$.
+- **RNN Pathway (Temporal Dynamics):** $h_t = f(h_{t-1}, x_t) \longrightarrow h_T$
+- **Escrow Pathway (Feature Accumulation):** $E = \sum_{t=1}^T \phi(h_t)$
+- **Joint Decision Head:** $\hat{y} = \text{Head}([h_T, E])$
 
 ---
 
-## 2. Complementary Lens: Speculative Write-Time Attention
+## 2. Theoretical Lens: Speculative Write-Time Selection
 
-Alongside the biological absorption perspective, FEN provides a clean mathematical bridge between Recurrent Networks and Transformers:
+Alongside the biological absorption perspective, FEN provides a clean computational alternative to traditional memory models:
 
 | Paradigm | Core Strategy | Mechanism / Analogy | Computational Cost |
 |----------|---------------|---------------------|-------------------|
 | **RNN / LSTM** | Carry memories forward through recurrence | *"Carry important memories step-by-step until needed."* (Gating inside single active loop) | $O(T)$ time, $O(1)$ memory |
-| **Attention (Transformer)** | Look backward dynamically | *"Look back later at decision time and retrieve past states."* (QKV dot-product search) | $O(T^2)$ time/space |
 | **FEN (Feature Escrow)** | Speculative forward accumulation | *"Extract features the moment they are ready, and deposit them into escrow."* (Write-time absorption into $E$) | **$O(T)$ time, $O(1)$ memory** |
 
 ---
@@ -126,8 +116,6 @@ Recover 5 symbols in exact order. Primary metric: **exact** full-sequence accura
 | LSTM 2L + Dropout | 0.774 | 0.10 | 0.15 | Ep 13 |
 | **LSTM 3L Best-Tuned** | **0.802** | **0.10** | **0.23** | **Ep 15** |
 
-*Takeaway:* FEN Roll reaches **80.0% accuracy at Epoch 2**, whereas the best 3-Layer LSTM requires **30 full epochs** just to hit 80.2% (15x speedup in sample efficiency).
-
 ---
 
 ## 7. Permuted MNIST (pMNIST: Ordered Escrow vs Spatial Locality)
@@ -156,7 +144,6 @@ Fixed random permutation of $T=400$ pixel axis (`PERM_SEED=123`). Spatial neighb
 | **P2 (High Stress)** | $T=256, C=12$ | **14.9%** (Ep1: **7.5%**) | **14.9%** (Ep1: 3.7%) | 3.1% (Floor) | 10.4% | 5.8% |
 
 ### Pixel-Level $T=1024$ Hierarchical FEN (`exp13`)
-Dividing $T=1024$ pixel stream into $K=32$ chunks of length 32:
 
 | Model | Best (15 ep) | Best (40 ep) | Epoch 1 Acc | Params |
 |-------|-------------:|-------------:|------------:|-------:|
@@ -179,7 +166,7 @@ Dividing $T=1024$ pixel stream into $K=32$ chunks of length 32:
 
 | Script | Title / Role |
 |--------|--------------|
-| `exp01_baseline_dual_task.py` | FEN family on synthetic foundation probes |
+| `exp01_baseline_dual_task.py` | FEN architecture family on synthetic foundation probes |
 | `exp01b_lstm_baseline.py` | LSTM & Residual baselines on foundation probes |
 | `exp02_ode_fen_order_ablation.py` | Soft-tape order & cell-aligned readout ablations |
 | `exp03_write_vs_readout.py` | Write topology x readout mechanism cross-grid |

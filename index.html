@@ -496,7 +496,6 @@ pre { font-family: var(--font-mono); font-size: 0.85rem; color: #c9d1d9; line-he
             <div class="paradigm-card">
                 <div class="tab-buttons">
                     <button class="tab-btn active" onclick="switchParadigmTab(event, 'tab-rnn')">RNN / LSTM</button>
-                    <button class="tab-btn" onclick="switchParadigmTab(event, 'tab-transformer')">Transformer</button>
                     <button class="tab-btn" onclick="switchParadigmTab(event, 'tab-fen')">FEN (Ours)</button>
                 </div>
                 
@@ -507,16 +506,6 @@ pre { font-family: var(--font-mono); font-size: 0.85rem; color: #c9d1d9; line-he
                         <div class="metric-pill"><div class="metric-label">Time Complexity</div><div class="metric-val">$O(T)$</div></div>
                         <div class="metric-pill"><div class="metric-label">State Memory</div><div class="metric-val">$O(1)$</div></div>
                         <div class="metric-pill"><div class="metric-label">sMNIST Ep-1 Acc</div><div class="metric-val text-red">10.0%</div></div>
-                    </div>
-                </div>
-
-                <div id="tab-transformer" class="tab-content">
-                    <p><strong>Philosophy:</strong> <em>"Look back later at decision time and retrieve past states."</em></p>
-                    <p>Caches all historical states $h_1 \dots h_T$ in memory and uses a Query vector $Q_T$ to search backwards via dot-product matching. Highly effective, but expensive at long sequence lengths.</p>
-                    <div class="grid-metrics">
-                        <div class="metric-pill"><div class="metric-label">Time Complexity</div><div class="metric-val text-red">$O(T^2)$</div></div>
-                        <div class="metric-pill"><div class="metric-label">State Memory</div><div class="metric-val text-red">$O(T)$ KV Cache</div></div>
-                        <div class="metric-pill"><div class="metric-label">Retrieval Mechanism</div><div class="metric-val">Read-Time QKV</div></div>
                     </div>
                 </div>
 

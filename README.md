@@ -5,11 +5,11 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
 
-**Feature-Escrow Networks (FEN)** is a novel, high-efficiency recurrent neural network architecture that decouples **active temporal computation** from **historical information preservation** via a dual-pathway structure.
+**Feature-Escrow Networks (FEN)** is a novel recurrent neural network architecture that decouples **active temporal computation** from **historical information preservation** via a dual-pathway structure.
 
 ### 📚 Research Documentation
-* 🌐 **[Interactive Web Report (`index.html`)](index.html)** — Anthropic-style interactive research report featuring visual architecture flows, dynamic paradigm comparisons, and interactive topology selectors.
-* 📝 **[Full Research & Experimental Report (`full_research_report.md`)](full_research_report.md)** — Complete, uncompressed documentation of all 15 experiments, synthetic probes, regime maps, and theoretical foundations.
+* 🌐 **[Interactive Web Report (`index.html`)](index.html)** — Interactive research report featuring visual architecture flows and topology selectors.
+* 📝 **[Full Research & Experimental Report (`full_research_report.md`)](full_research_report.md)** — Complete documentation of all 15 experiments, synthetic probes, regime maps, and theoretical foundations.
 
 ---
 
@@ -23,27 +23,23 @@ FEN is inspired by the **absorption mechanism of the human small intestine**:
 > 
 > **Feature-Escrow Networks** apply this exact principle to deep learning: the moment a temporal feature is processed and ready, the model **deposits it into an auxiliary escrow vault ($E$)**. The active recurrent loop is freed from carrying that memory, allowing it to focus strictly on local temporal dynamics without fear of overwriting finished facts.
 
-```text
-       RNN Pathway (Temporal Dynamics & Digestion)
-x_t ──► [ h_t = f(h_{t-1}, x_t) ] ───────► h_T ──┐
-             │                                   ├─► Head([h_T, E])
-             ▼ (phi extraction / absorption)     │
-       Escrow Pathway (Vault / Bloodstream)      │
-        E = Σ_t φ(h_t) ──────────────────────────┘
-```
+### Dual-Pathway Information Flow
+
+- **RNN Pathway (Temporal Dynamics):** Generates step-by-step temporal representations $h_t = f(h_{t-1}, x_t)$ leading to final state $h_T$.
+- **Escrow Pathway (Feature Accumulation):** Extracts ready features $\phi(h_t)$ and accumulates them into vault $E = \sum_{t=1}^T \phi(h_t)$.
+- **Joint Decision Head:** Evaluates the combined representation $\hat{y} = \text{Head}([h_T, E])$.
 
 ---
 
 ## ⚡ Architectural Comparison
 
-By extracting features as soon as they appear, FEN acts as **Speculative Write-Time Attention**, capturing attention-like feature preservation in linear time and constant memory:
+Evaluating memory strategies and computational efficiency across recurrent architectures:
 
 | Architecture | Memory Strategy | Time Complexity | State Memory | Early Signal (Epoch 1 Acc) | Peak Acc (sMNIST) |
 |--------------|-----------------|-----------------|--------------|----------------------------|-------------------|
 | **RNN / Residual** | Single state, no gating | $O(T)$ | $O(1)$ | 10.0% (Chance) | 10.2% |
 | **LSTM (1-Layer)** | Single state, internal forget gates | $O(T)$ | $O(1)$ | 10.0% (Chance) | 11.0% |
 | **LSTM (3-Layer Tuned)** | Deep stack, internal forget gates | $O(T)$ | $O(1)$ | 10.0% (Chance) | 80.2% (@ Ep 30) |
-| **Transformer** | Full state cache + backward QKV search | $O(T^2)$ | $O(T)$ KV Cache | Fast | High |
 | **FEN (`roll_nodep`)** | Dual-pathway speculative escrow | **$O(T)$** | **$O(1)$** | **69.1% (Epoch 1)** | **88.7% (Epoch 9)** |
 
 ---
@@ -54,6 +50,8 @@ By extracting features as soon as they appear, FEN acts as **Speculative Write-T
 * **Permuted MNIST (pMNIST):** `roll_nodep` maintains **60.4% Epoch-1** and **87.5% Peak Accuracy**, proving true ordered non-commutative escrow.
 * **Distracted Counting ($T=96$):** `bag_nodep` solves dual-role state retention with **95.1% Joint Accuracy** (vs ~10.0% for LSTMs).
 * **Pixel-Level $T=1024$ CIFAR-100:** Hierarchical FEN Roll reaches **23.38%** vs 5.36% for standard Hierarchical RNNs.
+
+*For complete tables across all 15 experiments, see the [Full Research Report](full_research_report.md).*
 
 ---
 
@@ -106,9 +104,9 @@ class FENRollNoDep(nn.Module):
 
 ```text
 Feature-Escrow-Networks/
-├── README.md                   ← Portfolio landing page (this document)
+├── README.md                   ← Project landing page (this document)
 ├── full_research_report.md     ← Uncompressed research report (all 15 experiments & log details)
-├── index.html                  ← Interactive Anthropic-style Web Research Report
+├── index.html                  ← Interactive Web Research Report
 ├── requirements.txt            ← Python dependencies
 └── fen_lab/                    ← Experimental laboratory scripts (exp01 to exp13)
 ```
