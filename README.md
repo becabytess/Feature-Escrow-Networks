@@ -1,15 +1,14 @@
 # Feature-Escrow Networks (FEN)
 
-[![Web Report](https://img.shields.io/badge/Web_Report-Interactive-2563eb.svg)](index.html)
-[![Full Report](https://img.shields.io/badge/Full_Report-Markdown-10b981.svg)](full_research_report.md)
+[![Web Report](https://img.shields.io/badge/Web_Report-Interactive-2563eb.svg)](https://becabytess.github.io/Feature-Escrow-Networks/)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
 
 **Feature-Escrow Networks (FEN)** is a novel recurrent neural network architecture that decouples **active temporal computation** from **historical information preservation** via a dual-pathway structure.
 
 ### 📚 Research Documentation
-* 🌐 **[Interactive Web Report (`index.html`)](index.html)** — Interactive research report featuring visual architecture flows and topology selectors.
-* 📝 **[Full Research & Experimental Report (`full_research_report.md`)](full_research_report.md)** — Complete documentation of all 15 experiments, synthetic probes, regime maps, and theoretical foundations.
+
+* 🌐 **[Interactive Web Report](https://becabytess.github.io/Feature-Escrow-Networks/)** — Interactive research report featuring visual architecture flows and topology selectors.
 
 ---
 
