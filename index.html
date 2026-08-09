@@ -4,661 +4,2193 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Feature-Escrow Networks — FEN_LAB Research Core</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
 <style>
-:root{
-  --bg:#060a13; --panel:#0c1424; --panel2:#0a1120;
-  --line:rgba(148,177,220,.16); --line2:rgba(148,177,220,.07);
-  --tx:#e9eef8; --mut:#93a1b8; --dim:#5d6b82;
-  --amb:#ffb454; --amb2:#ff8e3c; --cy:#56d9f6; --cy2:#2fb9e0;
-  --ok:#7ce38b; --bad:#ff6b7a;
-  --disp:'Syne',sans-serif; --body:'Instrument Sans',sans-serif; --mono:'JetBrains Mono',monospace;
+:root {
+  --bg: #f6f4ef;
+  --bg-alt: #eeece6;
+  --bg-code: #fbfaf6;
+  --text: #1c1917;
+  --text-muted: #57534e;
+  --text-dim: #a8a29e;
+  --accent: #b45309;
+  --accent-deep: #78350f;
+  --accent-ink: #1e3a5f;
+  --ok: #166534;
+  --bad: #991b1b;
+  --border: #ddd9d3;
+  --border-strong: #b8b3ac;
+
+  --serif: 'Instrument Serif', Georgia, serif;
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
 }
-*{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{
-  background:
-    radial-gradient(1100px 560px at 82% -8%, rgba(86,217,246,.07), transparent 62%),
-    radial-gradient(900px 520px at -8% 28%, rgba(255,180,84,.055), transparent 60%),
-    linear-gradient(rgba(148,177,220,.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148,177,220,.045) 1px, transparent 1px),
-    var(--bg);
-  background-size:auto,auto,44px 44px,44px 44px;
-  color:var(--tx); font-family:var(--body); font-size:16px; line-height:1.65;
-  overflow-x:hidden;
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
 }
-::selection{background:rgba(86,217,246,.3)}
-::-webkit-scrollbar{width:10px}::-webkit-scrollbar-track{background:var(--bg)}
-::-webkit-scrollbar-thumb{background:#1c2a44;border-radius:5px}
-#bg{position:fixed;inset:0;z-index:0;pointer-events:none}
-main,header,footer,.ticker{position:relative;z-index:1}
-.mono{font-family:var(--mono)} .amb{color:var(--amb)} .cy{color:var(--cy)}
-a{color:inherit}
 
-/* ---------- top chrome ---------- */
-#prog{position:fixed;top:0;left:0;height:2px;width:0;z-index:60;background:linear-gradient(90deg,var(--amb),var(--cy))}
-.top{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;gap:28px;
-  padding:0 32px;height:58px;background:rgba(6,10,19,.88);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-.brand{font-family:var(--mono);font-size:12px;letter-spacing:.14em;font-weight:700}
-.brand em{font-style:normal;color:var(--dim);font-weight:400}
-.top nav{display:flex;gap:22px;margin-left:auto}
-.top nav a{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--mut);text-decoration:none;position:relative;padding:4px 0}
-.top nav a::after{content:'';position:absolute;left:0;bottom:0;height:1px;width:0;background:var(--cy);transition:width .3s}
-.top nav a:hover{color:var(--cy)} .top nav a:hover::after{width:100%}
-.gh{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:#14100a;background:var(--amb);
-  padding:8px 14px;text-decoration:none;font-weight:700;transition:.25s}
-.gh:hover{background:var(--cy);transform:translateY(-1px)}
+::selection { background: var(--accent); color: #fff; }
 
-/* ---------- reveal ---------- */
-.rv{opacity:0;transform:translateY(26px);transition:opacity .8s ease,transform .8s cubic-bezier(.2,.7,.2,1)}
-.rv.in{opacity:1;transform:none}
+.katex { font-size: 1.05em; }
+.katex-display { margin: 1.5em 0; }
+.katex-display > .katex { font-size: 1.3em; }
 
-/* ---------- masthead ---------- */
-.wrap{max-width:1220px;margin:0 auto;padding:0 32px}
-.mast{padding:150px 0 70px}
-.mgrid{display:grid;grid-template-columns:1.02fr .98fr;gap:56px;align-items:center}
-.ovl{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--cy);display:flex;align-items:center;gap:10px;margin-bottom:26px}
-.ovl::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
-.cursor{display:inline-block;width:8px;height:14px;background:var(--cy);animation:blink 1.1s steps(2) infinite}
-@keyframes blink{50%{opacity:0}}
-.ttl{font-family:var(--disp);font-weight:800;text-transform:uppercase;line-height:.94;letter-spacing:-.01em;
-  font-size:clamp(2.9rem,6.4vw,5.6rem);margin-bottom:26px}
-.ttl span{display:block}
-.ttl .t2{color:var(--cy);text-shadow:0 0 34px rgba(86,217,246,.35)}
-.ttl .t3{color:transparent;-webkit-text-stroke:1.5px rgba(233,238,248,.55)}
-.deck{font-size:1.13rem;color:var(--mut);max-width:56ch;margin-bottom:32px}
-.deck b{color:var(--tx);font-weight:600}
-.mka{background:linear-gradient(transparent 62%,rgba(255,180,84,.28) 0);color:var(--amb);font-weight:600;padding:0 2px}
-.mkc{background:linear-gradient(transparent 62%,rgba(86,217,246,.25) 0);color:var(--cy);font-weight:600;padding:0 2px}
-.btnrow{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:26px}
-.btn{font-family:var(--mono);font-size:11px;letter-spacing:.14em;font-weight:700;padding:13px 22px;text-decoration:none;transition:.25s;border:1px solid transparent}
-.btn-a{background:var(--amb);color:#14100a}
-.btn-a:hover{background:var(--amb2);transform:translateY(-2px);box-shadow:0 8px 26px rgba(255,180,84,.28)}
-.btn-c{border-color:rgba(86,217,246,.5);color:var(--cy)}
-.btn-c:hover{background:rgba(86,217,246,.12);transform:translateY(-2px)}
-.chips{display:flex;gap:10px;flex-wrap:wrap}
-.chip{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--mut);border:1px solid var(--line);padding:6px 11px;transition:.25s}
-.chip:hover{color:var(--cy);border-color:var(--cy)}
+.container { max-width: 1080px; margin: 0 auto; padding: 0 2.5rem; }
 
-/* figure panel */
-.fig{border:1px solid var(--line);background:linear-gradient(180deg,rgba(12,20,36,.9),rgba(8,13,24,.9));position:relative}
-.fig .tick{position:absolute;width:11px;height:11px;border:1px solid var(--cy);z-index:2}
-.tick.tl{top:-1px;left:-1px;border-right:0;border-bottom:0}.tick.tr{top:-1px;right:-1px;border-left:0;border-bottom:0}
-.tick.bl{bottom:-1px;left:-1px;border-right:0;border-top:0}.tick.br{bottom:-1px;right:-1px;border-left:0;border-top:0}
-.figcap{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);
-  font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--dim)}
-.live{color:var(--bad);animation:blink 1.6s steps(2) infinite}
-.fig svg{display:block;width:100%;height:auto;padding:8px 6px}
-.sl{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em}
-.ab{fill:var(--amb)} .cyc{fill:var(--cy)} .dimm{fill:var(--dim)}
-.vd{animation:dep 5.5s var(--d) infinite}
-@keyframes dep{0%{opacity:0}8%{opacity:1}78%{opacity:1}92%,100%{opacity:0}}
-.headbox{animation:hglow 3.4s ease-in-out infinite}
-@keyframes hglow{0%,100%{filter:drop-shadow(0 0 0 rgba(86,217,246,0))}50%{filter:drop-shadow(0 0 7px rgba(86,217,246,.4))}}
-
-/* stat strip */
-.stats{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);margin-top:64px;background:rgba(10,17,32,.6)}
-.stat{padding:26px 26px 22px;border-right:1px solid var(--line);transition:background .3s}
-.stat:last-child{border-right:0}
-.stat:hover{background:rgba(86,217,246,.05)}
-.stat .n{font-family:var(--disp);font-weight:800;font-size:clamp(1.9rem,3.4vw,3rem);line-height:1}
-.stat .l{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--dim);margin-top:10px}
-
-/* ticker */
-.ticker{border-top:1px solid var(--line);border-bottom:1px solid var(--line);overflow:hidden;background:rgba(8,13,24,.7)}
-.tkwrap{display:flex;width:max-content;animation:mar 34s linear infinite}
-.ticker:hover .tkwrap{animation-play-state:paused}
-.tk{display:flex;gap:0;padding:13px 0;font-family:var(--mono);font-size:11px;letter-spacing:.18em;white-space:nowrap}
-.tk span{padding:0 26px;border-right:1px solid var(--line2)}
-@keyframes mar{to{transform:translateX(-50%)}}
-
-/* ---------- sections ---------- */
-.sec{padding:118px 0 0;scroll-margin-top:80px}
-.shead{display:flex;align-items:baseline;gap:22px;margin-bottom:14px}
-.sidx{font-family:var(--disp);font-weight:800;font-size:4.4rem;line-height:1;color:transparent;-webkit-text-stroke:1px rgba(148,177,220,.3)}
-.shead h2{font-family:var(--disp);font-weight:700;text-transform:uppercase;font-size:clamp(1.7rem,3.4vw,2.6rem);letter-spacing:.01em}
-.stag{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--cy);margin-left:auto;text-align:right}
-.srule{height:1px;background:linear-gradient(90deg,var(--line),transparent);margin-bottom:46px}
-.lead{font-size:1.28rem;line-height:1.7;color:var(--mut);max-width:74ch}
-.lead b{color:var(--tx)}
-
-/* equation */
-.eqplate{border:1px solid var(--line);background:var(--panel);padding:38px 30px;text-align:center;margin:44px 0;position:relative;overflow:hidden}
-.eqplate::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(148,177,220,.03) 0 1px,transparent 1px 28px)}
-.eq{font-family:var(--mono);font-size:clamp(1.15rem,2.6vw,1.8rem);font-weight:500;letter-spacing:.02em}
-.eq sub{font-size:.62em;color:var(--dim)}
-.eqcap{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--dim);margin-top:18px}
-.eqcap .bad{color:var(--bad)}
-
-.jobs{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin:36px 0}
-.job{border:1px solid var(--line);border-left:3px solid var(--amb);background:var(--panel);padding:22px 24px;transition:.3s}
-.job.c{border-left-color:var(--cy)}
-.job:hover{transform:translateY(-3px);background:var(--panel2)}
-.job h4{font-family:var(--mono);font-size:11px;letter-spacing:.18em;margin-bottom:10px}
-.job p{color:var(--mut);font-size:.95rem}
-
-/* paradigm panels */
-.para{display:grid;grid-template-columns:.92fr 1.08fr;gap:24px;margin-top:40px}
-.ppanel{border:1px solid var(--line);background:var(--panel);padding:30px 30px 26px;position:relative;transition:.3s}
-.ppanel:hover{transform:translateY(-4px)}
-.ppanel.legacy{border-top:3px solid var(--bad)}
-.ppanel.fen{border-top:3px solid var(--cy);box-shadow:0 0 60px rgba(86,217,246,.07)}
-.phead{font-family:var(--mono);font-size:11px;letter-spacing:.2em;margin-bottom:8px}
-.psub{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--dim);margin-bottom:22px}
-.prow{display:flex;justify-content:space-between;gap:20px;padding:11px 0;border-bottom:1px dashed var(--line2);font-size:.93rem}
-.prow .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--dim);padding-top:4px;white-space:nowrap}
-.prow .v{text-align:right;color:var(--mut)}
-.pbig{margin-top:22px;display:flex;align-items:baseline;gap:14px}
-.pbig .n{font-family:var(--disp);font-weight:800;font-size:3.1rem;line-height:1}
-.pbig .l{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--dim)}
-.pchips{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
-.pnote{margin-top:24px;border:1px dashed var(--line);padding:16px 20px;font-size:.92rem;color:var(--mut)}
-.pnote b{color:var(--tx)} .pnote .mono{font-size:.85rem;letter-spacing:.08em}
-
-/* ---------- architecture ---------- */
-.plates{display:flex;gap:14px;flex-wrap:wrap;margin:34px 0 44px}
-.plate{font-family:var(--mono);font-size:12.5px;padding:14px 20px;border:1px solid var(--line);background:var(--panel);letter-spacing:.03em;transition:.25s}
-.plate:hover{transform:translateY(-2px)}
-.plate.pa{border-color:rgba(255,180,84,.45);color:var(--amb)}
-.plate.pc{border-color:rgba(86,217,246,.45);color:var(--cy)}
-.arch{display:grid;grid-template-columns:5fr 7fr;gap:24px;align-items:stretch}
-.cpanel{border:1px solid var(--line);background:var(--panel);padding:26px}
-.cphead{font-family:var(--mono);font-size:12px;letter-spacing:.2em;font-weight:700;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:24px}
-.cphead span{color:var(--dim);font-weight:400;font-size:9.5px;letter-spacing:.14em}
-.cplab{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;color:var(--dim);margin:20px 0 12px}
-.modes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.mode{font-family:var(--mono);text-align:left;background:var(--panel2);border:1px solid var(--line);color:var(--mut);
-  padding:13px 14px;cursor:pointer;transition:.25s}
-.mode b{display:block;font-size:11px;letter-spacing:.1em;color:var(--tx);margin-bottom:4px}
-.mode i{font-style:normal;font-size:9px;letter-spacing:.06em;color:var(--dim)}
-.mode:hover{border-color:var(--cy);transform:translateY(-2px)}
-.mode.on{border-color:var(--cy);background:rgba(86,217,246,.09);box-shadow:0 0 22px rgba(86,217,246,.12)}
-.mode.on b{color:var(--cy)}
-.sw{display:flex;align-items:center;gap:14px;cursor:pointer;user-select:none}
-.sw input{display:none}
-.trk{width:48px;height:24px;border:1px solid var(--line);border-radius:13px;position:relative;transition:.3s;background:var(--panel2)}
-.knob{position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--dim);transition:.3s}
-.sw input:checked + .trk{border-color:var(--amb);background:rgba(255,180,84,.12)}
-.sw input:checked + .trk .knob{left:27px;background:var(--amb)}
-.swlab{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--mut)}
-.scr{margin-top:24px;background:#070d18;border:1px solid var(--line);padding:18px;font-family:var(--mono);font-size:11px;line-height:2.1}
-.scr .k{display:inline-block;width:118px;color:var(--dim);letter-spacing:.12em;font-size:9.5px}
-.scr .v{color:var(--tx)}
-.grow{display:flex;align-items:center;gap:14px;margin-top:8px}
-.gauge{width:12px;height:62px;border:1px solid var(--line);position:relative;background:var(--panel2)}
-.gauge i{position:absolute;bottom:0;left:0;width:100%;background:linear-gradient(180deg,var(--cy),var(--cy2));transition:height .7s ease,background .7s}
-.stage{border:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column}
-.sthead{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);
-  font-family:var(--mono);font-size:11px;letter-spacing:.18em;font-weight:700;flex-wrap:wrap}
-.vstage{position:relative;flex:1;min-height:300px;margin:14px;border:1px dashed rgba(86,217,246,.28);
-  background:radial-gradient(circle at 50% 45%,rgba(86,217,246,.05),transparent 65%)}
-.vstage::before{content:'VAULT E';position:absolute;top:-8px;left:14px;background:var(--panel);padding:0 8px;
-  font-family:var(--mono);font-size:9px;letter-spacing:.24em;color:var(--cy)}
-.vv{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;transform:scale(.92);transition:.45s;pointer-events:none}
-.vv.on{opacity:1;transform:none}
-.stcap{padding:0 20px 18px;font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--dim)}
-/* bag */
-.bagviz{position:relative;width:230px;height:190px}
-.bagviz i{position:absolute;border-radius:50%;background:radial-gradient(circle at 35% 35%,#aef0ff,var(--cy));
-  box-shadow:0 0 12px rgba(86,217,246,.5);animation:bob 3.6s ease-in-out infinite alternate}
-@keyframes bob{to{transform:translateY(-9px)}}
-/* slots */
-.slotviz{display:flex;gap:10px}
-.cell{width:34px;height:52px;border:1px dashed rgba(86,217,246,.45);position:relative}
-.cell em{position:absolute;bottom:-18px;left:0;right:0;text-align:center;font-style:normal;font-family:var(--mono);font-size:8px;color:var(--dim)}
-.cell i{position:absolute;left:50%;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--cy);
-  box-shadow:0 0 10px rgba(86,217,246,.6);animation:slotdrop 5.2s infinite}
-@keyframes slotdrop{0%{transform:translateY(-22px);opacity:0}12%{transform:none;opacity:1}86%{transform:none;opacity:1}96%,100%{opacity:0}}
-/* roll */
-.rollviz{position:relative;width:170px;height:170px}
-.ring{position:absolute;inset:0;animation:ratchet 5.6s steps(8) infinite}
-@keyframes ratchet{to{transform:rotate(360deg)}}
-.ring i{position:absolute;left:50%;top:50%;width:15px;height:15px;margin:-7.5px;border-radius:50%;
-  background:var(--cy);box-shadow:0 0 12px rgba(86,217,246,.55);transform:rotate(var(--a)) translateY(-62px)}
-.ring i:nth-child(1){opacity:1}.ring i:nth-child(2){opacity:.85}.ring i:nth-child(3){opacity:.7}
-.ring i:nth-child(4){opacity:.55}.ring i:nth-child(5){opacity:.42}.ring i:nth-child(6){opacity:.32}
-.ring i:nth-child(7){opacity:.24}.ring i:nth-child(8){opacity:.16}
-.rollcore{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  font-family:var(--disp);font-weight:800;font-size:1.7rem;color:var(--cy)}
-.wh{position:absolute;top:-14px;left:50%;transform:translateX(-50%);color:var(--amb);font-size:13px;animation:blink 1.4s steps(2) infinite}
-.whl{position:absolute;top:-30px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:8px;letter-spacing:.2em;color:var(--amb);white-space:nowrap}
-/* hybrid */
-.hyviz{display:flex;gap:34px;align-items:center}
-.hyviz .bagviz{width:120px;height:110px}
-.hyviz .rollviz{width:110px;height:110px}
-.hyviz .ring i{transform:rotate(var(--a)) translateY(-40px);width:11px;height:11px;margin:-5.5px}
-.hysep{font-family:var(--mono);color:var(--dim);font-size:14px}
-/* doctrine */
-.doctrine{display:flex;gap:14px;flex-wrap:wrap;margin-top:24px}
-.doc{font-family:var(--mono);font-size:10px;letter-spacing:.1em;padding:11px 16px;border:1px solid var(--line);background:var(--panel);transition:.25s}
-.doc:hover{transform:translateY(-2px)}
-.doc.ok{color:var(--ok);border-color:rgba(124,227,139,.4)}
-.doc.bad{color:var(--bad);border-color:rgba(255,107,122,.35)}
-
-/* ---------- intuition lenses ---------- */
-.lens{display:grid;grid-template-columns:110px 1fr 1.1fr;gap:34px;padding:52px 0;border-top:1px dashed var(--line2);align-items:center}
-.lens:last-child{border-bottom:1px dashed var(--line2)}
-.lens .num{font-family:var(--disp);font-weight:800;font-size:3.4rem;color:transparent;-webkit-text-stroke:1px rgba(86,217,246,.5)}
-.lens h3{font-family:var(--disp);font-weight:700;font-size:1.45rem;text-transform:uppercase;margin-bottom:14px}
-.lens p{color:var(--mut);font-size:.98rem;margin-bottom:12px}
-.lens .map{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--dim);line-height:2.2}
-.lens .map b{color:var(--tx);font-weight:500}
-.lvis{border:1px solid var(--line);background:var(--panel);padding:10px}
-.lvis svg{display:block;width:100%;height:auto}
-.cmp2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.cmp{border:1px solid var(--line);background:var(--panel2);padding:12px 12px 8px}
-.cmp h5{font-family:var(--mono);font-size:9px;letter-spacing:.18em;margin-bottom:8px}
-.attn{animation:attnp 2.4s ease-in-out infinite}
-@keyframes attnp{0%,100%{opacity:.25}50%{opacity:.85}}
-
-/* ---------- evidence ---------- */
-.evhead{display:flex;align-items:baseline;gap:16px;margin:74px 0 8px}
-.evhead .eid{font-family:var(--mono);font-size:12px;color:var(--amb);letter-spacing:.14em;font-weight:700}
-.evhead h3{font-family:var(--disp);font-weight:700;font-size:1.5rem;text-transform:uppercase}
-.evsub{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--dim);margin-bottom:28px}
-.egrid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
-.epanel{border:1px solid var(--line);background:var(--panel);padding:24px}
-.epanel h4{font-family:var(--mono);font-size:11px;letter-spacing:.18em;font-weight:700;margin-bottom:4px}
-.epanel .esub{font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--dim);margin-bottom:20px}
-/* bar rows */
-.bhead,.brow{display:grid;grid-template-columns:158px 1fr 56px 1fr 56px 128px;gap:10px;align-items:center}
-.bhead{font-family:var(--mono);font-size:8.5px;letter-spacing:.18em;color:var(--dim);padding-bottom:10px;border-bottom:1px solid var(--line)}
-.brow{padding:9px 0;border-bottom:1px solid var(--line2);transition:background .25s,transform .25s}
-.brow:hover{background:rgba(86,217,246,.045);transform:translateX(4px)}
-.brow.single{grid-template-columns:158px 1fr 56px 128px}
-.blab{font-size:.86rem;line-height:1.3}
-.blab em{display:block;font-style:normal;font-family:var(--mono);font-size:8.5px;color:var(--dim);letter-spacing:.06em;margin-top:2px}
-.btrack{height:20px;background:rgba(148,177,220,.07);border:1px solid var(--line2);position:relative}
-.bar{height:100%;width:0;transition:width 1.3s cubic-bezier(.2,.7,.2,1);position:relative}
-.bar.ep{background:linear-gradient(90deg,rgba(86,217,246,.55),rgba(86,217,246,.95))}
-.bar.pk{background:linear-gradient(90deg,rgba(255,180,84,.55),var(--amb))}
-.bar.dep{background:repeating-linear-gradient(45deg,rgba(255,180,84,.3) 0 4px,transparent 4px 8px);border:1px solid rgba(255,180,84,.6)}
-.bar.rd{background:linear-gradient(90deg,rgba(255,107,122,.4),rgba(255,107,122,.85))}
-.bval{font-family:var(--mono);font-size:11px;text-align:right;color:var(--tx)}
-.st{font-family:var(--mono);font-size:8px;letter-spacing:.1em;padding:4px 8px;border:1px solid;text-align:center;white-space:nowrap}
-.st.ok{color:var(--ok);border-color:rgba(124,227,139,.45);background:rgba(124,227,139,.07)}
-.st.bad{color:var(--bad);border-color:rgba(255,107,122,.45);background:rgba(255,107,122,.07)}
-.st.cy{color:var(--cy);border-color:rgba(86,217,246,.45);background:rgba(86,217,246,.07)}
-.st.warn{color:var(--amb);border-color:rgba(255,180,84,.45);background:rgba(255,180,84,.07)}
-.takeaway{margin-top:24px;border:1px solid rgba(255,180,84,.4);background:rgba(255,180,84,.06);padding:18px 22px;
-  font-size:.95rem;color:var(--mut)}
-.takeaway b{color:var(--amb)}
-.takeaway .mono{font-size:.85rem}
-/* big callout */
-.callout{display:flex;align-items:center;gap:30px;border:1px solid var(--line);background:var(--panel);padding:30px 34px;margin-top:24px;flex-wrap:wrap}
-.callout .huge{font-family:var(--disp);font-weight:800;font-size:clamp(3rem,6vw,4.6rem);color:var(--amb);line-height:1;text-shadow:0 0 40px rgba(255,180,84,.3)}
-.callout p{color:var(--mut);flex:1;min-width:260px}
-.callout p b{color:var(--tx)}
-/* curve */
-.curvebox{border:1px solid var(--line);background:var(--panel);padding:20px;margin-top:24px}
-.draw{stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset 2s ease .3s}
-.in .draw{stroke-dashoffset:0}
-.legend{display:flex;gap:20px;flex-wrap:wrap;margin-top:12px;font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--dim)}
-.legend i{display:inline-block;width:18px;height:2px;vertical-align:middle;margin-right:7px}
-/* tables */
-.tscroll{overflow-x:auto}
-.tbl{width:100%;border-collapse:collapse;min-width:640px}
-.tbl th{font-family:var(--mono);font-size:8.5px;letter-spacing:.18em;color:var(--dim);text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);font-weight:500;text-transform:uppercase}
-.tbl td{padding:12px 14px;border-bottom:1px solid var(--line2);font-size:.9rem;color:var(--mut);transition:background .2s}
-.tbl tr:hover td{background:rgba(86,217,246,.045)}
-.tbl .mid{font-family:var(--mono);color:var(--cy);font-size:.85rem}
-.tbl .msc{font-family:var(--mono);font-size:.8rem;color:var(--mut)}
-.tbl td.heat{background:rgba(86,217,246,var(--h,0));font-family:var(--mono);font-size:.85rem;color:var(--tx)}
-.tbl td.heat small{display:block;font-size:8px;color:var(--dim);letter-spacing:.08em}
-.tbl tr:hover td.heat{filter:brightness(1.25)}
-/* deplete rows */
-.drow{display:grid;grid-template-columns:190px 1fr 110px;gap:22px;align-items:center;padding:20px 0;border-bottom:1px solid var(--line2)}
-.dlab{font-size:.92rem}
-.dlab small{display:block;font-family:var(--mono);font-size:8.5px;color:var(--dim);letter-spacing:.1em;margin-top:3px}
-.dtr{display:grid;grid-template-columns:104px 1fr 86px;gap:10px;align-items:center;margin:5px 0}
-.dk{font-family:var(--mono);font-size:8.5px;letter-spacing:.12em}
-.dk.cy{color:var(--cy)} .dk.ab{color:var(--amb)}
-.dtr small{font-family:var(--mono);font-size:8.5px;color:var(--dim);text-align:right}
-.ddelta{font-family:var(--disp);font-weight:800;font-size:1.9rem;color:var(--bad);text-align:right}
-.ddelta small{display:block;font-family:var(--mono);font-size:8px;letter-spacing:.2em;color:var(--dim);font-weight:400}
-.verdict{border:1px solid rgba(86,217,246,.45);background:rgba(86,217,246,.06);padding:22px 26px;margin-top:26px}
-.verdict h4{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--cy);margin-bottom:10px}
-.verdict p{color:var(--mut);font-size:.96rem}
-.verdict p b{color:var(--tx)}
-/* ecg */
-.ecgbox{border:1px solid var(--line);background:var(--panel);padding:14px;position:relative;overflow:hidden}
-.ecg-sweep{animation:ecgd 3.4s linear infinite;filter:drop-shadow(0 0 6px rgba(86,217,246,.7))}
-@keyframes ecgd{to{stroke-dashoffset:-100}}
-.wcards{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:24px}
-.wcard{border:1px solid var(--line);background:var(--panel);padding:24px;transition:.3s}
-.wcard:hover{transform:translateY(-4px);border-color:rgba(86,217,246,.4)}
-.wcard h4{font-family:var(--mono);font-size:11px;letter-spacing:.18em;margin-bottom:12px}
-.wcard .n{font-family:var(--disp);font-weight:800;font-size:2.4rem;color:var(--cy);line-height:1;margin-bottom:12px}
-.wcard p{color:var(--mut);font-size:.92rem}
-
-/* ---------- code ---------- */
-.codebox{border:1px solid var(--line);background:#070d18}
-.codehead{display:flex;align-items:center;gap:16px;padding:13px 20px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-.fname{font-family:var(--mono);font-size:12px;color:var(--amb);font-weight:700}
-.codehead .chip{margin:0}
-.copy{margin-left:auto;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;background:none;border:1px solid var(--line);
-  color:var(--mut);padding:7px 14px;cursor:pointer;transition:.25s}
-.copy:hover{color:var(--cy);border-color:var(--cy)}
-.codelegend{display:flex;gap:22px;padding:10px 20px;border-bottom:1px solid var(--line2);font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--dim)}
-.codelegend i{display:inline-block;width:3px;height:12px;vertical-align:-2px;margin-right:8px}
-pre{padding:20px 0;overflow-x:auto;counter-reset:l}
-.cl{display:block;padding:1px 20px 1px 66px;position:relative;font-family:var(--mono);font-size:12.5px;line-height:1.85;color:#c7d3e6;white-space:pre;border-left:3px solid transparent}
-.cl::before{counter-increment:l;content:counter(l,decimal-leading-zero);position:absolute;left:20px;color:#33415c;font-size:10px;top:3px}
-.cl.lh{border-left-color:rgba(255,180,84,.55);background:rgba(255,180,84,.04)}
-.cl.le{border-left-color:rgba(86,217,246,.55);background:rgba(86,217,246,.04)}
-.cl:hover{background:rgba(148,177,220,.06)}
-.k{color:var(--amb)} .c{color:#54627e;font-style:italic} .f{color:var(--cy)} .s{color:var(--ok)} .t{color:#ffd9a1}
-
-/* experiments + scope */
-.xrow{transition:.2s}
-.xrow:hover .mid{color:var(--amb)!important}
-.stamps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:24px}
-.stamp{border:1px solid rgba(255,107,122,.35);background:var(--panel);padding:24px;position:relative;transition:.3s}
-.stamp:hover{transform:translateY(-4px)}
-.stamp .x{position:absolute;top:14px;right:16px;font-family:var(--mono);font-weight:700;color:var(--bad);
-  border:2px solid var(--bad);padding:2px 8px;font-size:11px;transform:rotate(8deg);opacity:.85}
-.stamp p{color:var(--mut);font-size:.93rem;padding-right:44px}
-.stamp p b{color:var(--tx)}
-.core{border:1px solid rgba(86,217,246,.5);background:linear-gradient(90deg,rgba(86,217,246,.09),rgba(255,180,84,.05));padding:30px 34px}
-.core h4{font-family:var(--mono);font-size:11px;letter-spacing:.24em;color:var(--cy);margin-bottom:14px}
-.core p{font-size:1.15rem;color:var(--tx);max-width:80ch}
-
-/* footer */
-footer{margin-top:130px;border-top:1px solid var(--line);padding:70px 0 46px;position:relative;overflow:hidden}
-.fword{font-family:var(--disp);font-weight:800;font-size:clamp(4rem,13vw,10.5rem);line-height:.9;color:transparent;
-  -webkit-text-stroke:1px rgba(148,177,220,.22);text-transform:uppercase;user-select:none}
-.frow{display:flex;gap:26px;flex-wrap:wrap;align-items:center;margin:34px 0 20px}
-.frow a{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;color:var(--mut);text-decoration:none;transition:.25s}
-.frow a:hover{color:var(--cy);transform:translateX(3px)}
-.fmeta{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;color:var(--dim)}
-
-@media(max-width:1080px){
-  .mgrid,.arch,.para,.egrid,.wcards{grid-template-columns:1fr}
-  .lens{grid-template-columns:70px 1fr;gap:20px}
-  .lens .lvis{grid-column:1/-1}
-  .stamps{grid-template-columns:1fr}
-  .top nav{display:none}
-  .stats{grid-template-columns:1fr 1fr}
-  .stat{border-bottom:1px solid var(--line)}
-  .bhead,.brow{grid-template-columns:120px 1fr 48px 1fr 48px 96px;font-size:.8rem}
-  .brow.single{grid-template-columns:120px 1fr 48px 96px}
-  .drow{grid-template-columns:1fr;gap:8px}
-  .ddelta{text-align:left}
+/* ---------- Progress bar ---------- */
+#progress {
+  position: fixed;
+  top: 0; left: 0;
+  height: 2px;
+  width: 0;
+  background: var(--accent);
+  z-index: 100;
+  transition: width 0.1s linear;
 }
-@media(prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation:none!important;transition:none!important}
-  .rv{opacity:1;transform:none}
+
+/* ---------- Header ---------- */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 1.25rem 0;
+}
+
+.nav-inner {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.brand {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  font-weight: 500;
+}
+
+.brand em {
+  font-style: normal;
+  color: var(--text-dim);
+}
+
+nav {
+  display: flex;
+  gap: 1.75rem;
+  flex-wrap: wrap;
+}
+
+nav a {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: color 0.2s;
+}
+
+nav a:hover { color: var(--accent); }
+
+.gh-link {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border-strong);
+  padding-bottom: 2px;
+  transition: all 0.2s;
+  text-transform: uppercase;
+}
+
+.gh-link:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ---------- Masthead ---------- */
+.masthead {
+  padding: 7rem 0 5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.mast-label {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.mast-label::before {
+  content: '';
+  width: 2rem;
+  height: 1px;
+  background: var(--border-strong);
+}
+
+.mast-title {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(2.8rem, 6vw, 4.8rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin-bottom: 2rem;
+  max-width: 900px;
+}
+
+.mast-title em { font-style: italic; color: var(--accent); }
+
+.mast-deck {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  max-width: 72ch;
+  line-height: 1.75;
+  margin-bottom: 2.5rem;
+}
+
+.mast-deck strong { color: var(--text); font-weight: 500; }
+
+.mast-cta {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 3rem;
+}
+
+.mast-cta a, .mast-cta button {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--text);
+  text-decoration: none;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  border-bottom: 1px solid var(--border-strong);
+  padding-bottom: 3px;
+  transition: all 0.2s;
+}
+
+.mast-cta a:hover, .mast-cta button:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.chips {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.chip {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.85rem;
+  letter-spacing: 0.02em;
+}
+
+/* ---------- Figure ---------- */
+.figure {
+  margin-top: 3rem;
+  border: 1px solid var(--border);
+  background: var(--bg-alt);
+  position: relative;
+}
+
+.figure-cap {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.figure-cap .live {
+  color: var(--bad);
+  font-weight: 500;
+}
+
+.figure svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.readouts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid var(--border);
+}
+
+.ro {
+  padding: 1.25rem;
+  border-right: 1px solid var(--border);
+}
+
+.ro:last-child { border-right: none; }
+
+.ro .n {
+  font-family: var(--serif);
+  font-size: 2rem;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+  color: var(--accent);
+  letter-spacing: -0.01em;
+}
+
+.ro .l {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ---------- Ticker ---------- */
+.ticker {
+  padding: 1.25rem 0;
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+}
+
+.ticker-track {
+  display: inline-block;
+  animation: marquee 60s linear infinite;
+  padding-left: 100%;
+}
+
+.ticker:hover .ticker-track { animation-play-state: paused; }
+
+.ticker span {
+  padding: 0 2rem;
+  display: inline-block;
+}
+
+.ticker span::after {
+  content: '·';
+  margin-left: 2rem;
+  color: var(--border-strong);
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
+/* ---------- Sections ---------- */
+section.content {
+  padding: 6rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.sec-head {
+  display: flex;
+  align-items: baseline;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.sec-num {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 2.2rem;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.sec-head h2 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 2rem;
+  letter-spacing: -0.01em;
+  flex: 1;
+}
+
+.sec-tag {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.sec-rule {
+  height: 1px;
+  background: var(--border);
+  margin: 2.5rem 0 3rem;
+}
+
+.lead {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  line-height: 1.75;
+  max-width: 68ch;
+  margin-bottom: 2.5rem;
+}
+
+.lead strong { color: var(--text); font-weight: 500; }
+.lead em { font-style: italic; color: var(--accent); font-family: var(--serif); }
+
+/* ---------- Equation plate ---------- */
+.eq-plate {
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  padding: 2.5rem 2rem;
+  margin: 2.5rem 0;
+  text-align: center;
+}
+
+.eq-plate .eq {
+  font-size: 1.35rem;
+  color: var(--text);
+}
+
+.eq-plate .eq-cap {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 1.25rem;
+  line-height: 1.7;
+}
+
+.eq-cap .warn { color: var(--bad); }
+
+/* ---------- Jobs ---------- */
+.jobs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin: 2rem 0 3rem;
+}
+
+.job {
+  border-left: 2px solid var(--accent);
+  background: var(--bg-alt);
+  padding: 1.75rem 1.5rem;
+  border-right: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.job.escrow { border-left-color: var(--accent-ink); }
+
+.job h4 {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+  color: var(--accent);
+}
+
+.job.escrow h4 { color: var(--accent-ink); }
+
+.job p {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+/* ---------- Paradigm panels ---------- */
+.para {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin: 2.5rem 0;
+}
+
+.ppanel {
+  border: 1px solid var(--border);
+  background: var(--bg-alt);
+  padding: 1.75rem;
+}
+
+.ppanel.legacy { border-top: 3px solid var(--bad); }
+.ppanel.fen { border-top: 3px solid var(--accent); }
+
+.phead {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  color: var(--text);
+}
+
+.psub {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+  line-height: 1.55;
+}
+
+.prow {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.6rem 0;
+  border-bottom: 1px dotted var(--border);
+  font-size: 0.9rem;
+  gap: 1rem;
+}
+
+.prow .k {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.prow .v {
+  text-align: right;
+  color: var(--text-muted);
+}
+
+.pbig {
+  margin-top: 1.5rem;
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.pbig .n {
+  font-family: var(--serif);
+  font-size: 2.2rem;
+  line-height: 1;
+  color: var(--bad);
+}
+
+.ppanel.fen .pbig .n { color: var(--accent); }
+
+.pbig .l {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  line-height: 1.5;
+}
+
+.pchips {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 1.25rem;
+}
+
+.st {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid;
+  text-transform: uppercase;
+}
+
+.st.ok { color: var(--ok); border-color: rgba(22, 101, 52, 0.35); }
+.st.bad { color: var(--bad); border-color: rgba(153, 27, 27, 0.35); }
+.st.amber { color: var(--accent); border-color: rgba(180, 83, 9, 0.35); }
+.st.ink { color: var(--accent-ink); border-color: rgba(30, 58, 95, 0.35); }
+.st.warn { color: var(--text-muted); border-color: var(--border); }
+
+.pnote {
+  margin-top: 1.5rem;
+  border: 1px dashed var(--border-strong);
+  padding: 1.25rem 1.5rem;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.pnote strong { color: var(--text); font-weight: 500; }
+.pnote .mono { font-family: var(--mono); font-size: 0.85rem; }
+
+/* ---------- Architecture ---------- */
+.plates {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: 2rem 0 3rem;
+}
+
+.plate {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  padding: 0.85rem 1.25rem;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+}
+
+.plate.active { border-color: var(--accent); color: var(--accent); }
+.plate.escrow { border-color: var(--accent-ink); color: var(--accent-ink); }
+
+.arch {
+  display: grid;
+  grid-template-columns: 5fr 7fr;
+  gap: 1.5rem;
+  align-items: stretch;
+}
+
+.cpanel {
+  border: 1px solid var(--border);
+  background: var(--bg-alt);
+  padding: 1.75rem;
+}
+
+.cphead {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.cphead span {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+}
+
+.cplab {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin: 1.25rem 0 0.75rem;
+}
+
+.modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.mode {
+  background: transparent;
+  border: 1px solid var(--border);
+  text-align: left;
+  padding: 0.85rem;
+  cursor: pointer;
+  font-family: var(--sans);
+  color: var(--text-muted);
+  transition: all 0.2s;
+}
+
+.mode b {
+  display: block;
+  font-size: 0.82rem;
+  font-family: var(--mono);
+  letter-spacing: 0.04em;
+  color: var(--text);
+  margin-bottom: 0.25rem;
+  font-weight: 500;
+}
+
+.mode i {
+  font-style: normal;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-family: var(--mono);
+}
+
+.mode:hover { border-color: var(--accent); }
+
+.mode.on {
+  border-color: var(--accent);
+  background: rgba(180, 83, 9, 0.08);
+}
+
+.mode.on b { color: var(--accent); }
+
+/* Switch */
+.sw {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  user-select: none;
+  margin-top: 0.75rem;
+}
+
+.sw input { display: none; }
+
+.trk {
+  width: 38px;
+  height: 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  position: relative;
+  transition: all 0.3s;
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.knob {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: all 0.3s;
+}
+
+.sw input:checked + .trk {
+  border-color: var(--accent);
+  background: rgba(180, 83, 9, 0.1);
+}
+
+.sw input:checked + .trk .knob {
+  left: 20px;
+  background: var(--accent);
+}
+
+.swlab {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* Console */
+.scr {
+  margin-top: 1.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 1.25rem;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 2;
+}
+
+.scr .k {
+  display: inline-block;
+  width: 110px;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.scr .v { color: var(--text); }
+.scr .v.amber { color: var(--accent); }
+.scr .v.ink { color: var(--accent-ink); }
+
+.grow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.gauge {
+  width: 10px;
+  height: 48px;
+  border: 1px solid var(--border);
+  position: relative;
+  background: var(--bg);
+}
+
+.gauge i {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: var(--accent);
+  transition: height 0.7s ease;
+}
+
+/* Stage */
+.stage {
+  border: 1px solid var(--border);
+  background: var(--bg-alt);
+  display: flex;
+  flex-direction: column;
+}
+
+.sthead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.sthead .chip {
+  font-size: 0.72rem;
+  padding: 0.25rem 0.6rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+
+.vstage {
+  position: relative;
+  flex: 1;
+  min-height: 280px;
+  margin: 1rem;
+  border: 1px dashed var(--border-strong);
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vstage::before {
+  content: 'VAULT E';
+  position: absolute;
+  top: -8px;
+  left: 14px;
+  background: var(--bg-alt);
+  padding: 0 8px;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+.vv {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.vv.on { display: flex; }
+
+.stcap {
+  padding: 0.75rem 1.25rem 1rem;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+/* Visualizations */
+.bagviz {
+  position: relative;
+  width: 200px;
+  height: 160px;
+}
+
+.bagviz i {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: bob 3.6s ease-in-out infinite alternate;
+}
+
+@keyframes bob { to { transform: translateY(-8px); } }
+
+.slotviz {
+  display: flex;
+  gap: 8px;
+}
+
+.cell {
+  width: 32px;
+  height: 48px;
+  border: 1px dashed var(--accent);
+  position: relative;
+}
+
+.cell em {
+  position: absolute;
+  bottom: -18px;
+  left: 0; right: 0;
+  text-align: center;
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.cell i {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 12px; height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: slotdrop 5.2s infinite;
+}
+
+@keyframes slotdrop {
+  0% { transform: translateY(-22px); opacity: 0; }
+  12% { transform: none; opacity: 1; }
+  86% { transform: none; opacity: 1; }
+  96%, 100% { opacity: 0; }
+}
+
+.rollviz {
+  position: relative;
+  width: 150px;
+  height: 150px;
+}
+
+.ring {
+  position: absolute;
+  inset: 0;
+  animation: ratchet 5.6s steps(8) infinite;
+}
+
+@keyframes ratchet { to { transform: rotate(360deg); } }
+
+.ring i {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 13px; height: 13px;
+  margin: -6.5px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: rotate(var(--a)) translateY(-55px);
+}
+
+.ring i:nth-child(1) { opacity: 1; }
+.ring i:nth-child(2) { opacity: 0.85; }
+.ring i:nth-child(3) { opacity: 0.7; }
+.ring i:nth-child(4) { opacity: 0.55; }
+.ring i:nth-child(5) { opacity: 0.42; }
+.ring i:nth-child(6) { opacity: 0.32; }
+.ring i:nth-child(7) { opacity: 0.24; }
+.ring i:nth-child(8) { opacity: 0.16; }
+
+.rollcore {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.6rem;
+  color: var(--accent);
+}
+
+.wh {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.whl {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.hyviz {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+}
+
+.hyviz .bagviz { width: 120px; height: 110px; }
+.hyviz .rollviz { width: 110px; height: 110px; }
+.hyviz .ring i { transform: rotate(var(--a)) translateY(-40px); width: 10px; height: 10px; margin: -5px; }
+
+.hysep {
+  font-family: var(--serif);
+  color: var(--text-dim);
+  font-size: 1.25rem;
+  font-style: italic;
+}
+
+/* Doctrine */
+.doctrine {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 2rem;
+}
+
+.doc {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--border);
+  background: var(--bg-alt);
+  line-height: 1.5;
+}
+
+.doc.ok { color: var(--ok); border-color: rgba(22, 101, 52, 0.35); }
+.doc.bad { color: var(--bad); border-color: rgba(153, 27, 27, 0.35); }
+
+/* ---------- Lenses ---------- */
+.lens {
+  display: grid;
+  grid-template-columns: 80px 1fr 1.1fr;
+  gap: 2.5rem;
+  padding: 3.5rem 0;
+  border-top: 1px solid var(--border);
+  align-items: start;
+}
+
+.lens:last-child { border-bottom: 1px solid var(--border); }
+
+.lens .num {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 3rem;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.lens h3 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 1.6rem;
+  margin-bottom: 1rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.lens p {
+  color: var(--text-muted);
+  font-size: 0.98rem;
+  margin-bottom: 1rem;
+  line-height: 1.7;
+}
+
+.lens p strong { color: var(--text); font-weight: 500; }
+
+.lens .map {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  line-height: 2;
+  margin-top: 0.5rem;
+}
+
+.lens .map strong { color: var(--text); font-weight: 500; }
+
+.lvis {
+  border: 1px solid var(--border);
+  background: var(--bg-alt);
+  padding: 0.75rem;
+}
+
+.lvis svg { display: block; width: 100%; height: auto; }
+
+.cmp2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.cmp {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  padding: 1rem 0.75rem 0.75rem;
+}
+
+.cmp h5 {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+  color: var(--text-dim);
+}
+
+.cmp.attention h5 { color: var(--bad); }
+.cmp.write h5 { color: var(--accent-ink); }
+
+.attn { animation: attnp 2.4s ease-in-out infinite; }
+@keyframes attnp { 0%, 100% { opacity: 0.25; } 50% { opacity: 0.85; } }
+
+/* ---------- Evidence ---------- */
+.evhead {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 3.5rem 0 0.5rem;
+}
+
+.evhead:first-of-type { margin-top: 0; }
+
+.evhead .eid {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.5rem;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.evhead h3 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 1.5rem;
+}
+
+.evsub {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 1.75rem;
+  line-height: 1.6;
+}
+
+.egrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.epanel {
+  border: 1px solid var(--border);
+  background: var(--bg-alt);
+  padding: 1.5rem;
+}
+
+.epanel h4 {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+  line-height: 1.4;
+}
+
+.epanel h4 .amber { color: var(--accent); }
+.epanel h4 .ink { color: var(--accent-ink); }
+
+.epanel .esub {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  margin-bottom: 1.25rem;
+  text-transform: uppercase;
+}
+
+/* Bar rows */
+.bhead, .brow {
+  display: grid;
+  grid-template-columns: 150px 1fr 50px 1fr 50px 110px;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.bhead {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  text-transform: uppercase;
+}
+
+.brow {
+  padding: 0.6rem 0;
+  border-bottom: 1px dotted var(--border);
+  transition: all 0.2s;
+}
+
+.brow:hover { background: rgba(180, 83, 9, 0.04); }
+
+.brow.single {
+  grid-template-columns: 150px 1fr 50px 110px;
+}
+
+.blab {
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.blab em {
+  display: block;
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+  margin-top: 0.15rem;
+}
+
+.btrack {
+  height: 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  position: relative;
+}
+
+.bar {
+  height: 100%;
+  width: 0;
+  transition: width 1.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.bar.amber { background: var(--accent); }
+.bar.ink { background: var(--accent-ink); }
+.bar.dep {
+  background: repeating-linear-gradient(45deg, rgba(180, 83, 9, 0.35) 0 4px, transparent 4px 8px);
+  border: 1px solid var(--accent);
+}
+
+.bar.bad { background: var(--bad); opacity: 0.75; }
+.bar.muted { background: var(--text-dim); opacity: 0.6; }
+
+.bval {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  text-align: right;
+  color: var(--text);
+}
+
+.takeaway {
+  margin-top: 1.5rem;
+  border-left: 3px solid var(--accent);
+  background: rgba(180, 83, 9, 0.04);
+  padding: 1.25rem 1.5rem;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  line-height: 1.65;
+}
+
+.takeaway strong { color: var(--text); font-weight: 500; }
+.takeaway .mono { font-family: var(--mono); font-size: 0.85rem; }
+.takeaway .amber { color: var(--accent); }
+.takeaway .ink { color: var(--accent-ink); }
+
+/* Callout */
+.callout {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  border: 1px solid var(--border);
+  background: var(--bg-alt);
+  padding: 2rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.callout .huge {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 4rem;
+  color: var(--accent);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.callout p {
+  color: var(--text-muted);
+  flex: 1;
+  min-width: 240px;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.callout p strong { color: var(--text); font-weight: 500; }
+
+/* Curve */
+.curvebox {
+  border: 1px solid var(--border);
+  background: var(--bg-alt);
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 2s ease 0.3s;
+}
+
+.in .draw { stroke-dashoffset: 0; }
+
+.legend {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+.legend i {
+  display: inline-block;
+  width: 18px;
+  height: 2px;
+  vertical-align: middle;
+  margin-right: 0.5rem;
+}
+
+/* Tables */
+.tscroll { overflow-x: auto; }
+
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+}
+
+.tbl th {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  text-align: left;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.tbl td {
+  padding: 0.75rem 0.85rem;
+  border-bottom: 1px dotted var(--border);
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+.tbl tr:hover td { background: rgba(180, 83, 9, 0.03); }
+
+.tbl .mid {
+  font-family: var(--mono);
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.tbl .msc {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.tbl td.heat {
+  background: rgba(180, 83, 9, var(--h, 0));
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--text);
+}
+
+.tbl td.heat small {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  letter-spacing: 0.02em;
+  margin-top: 0.15rem;
+}
+
+/* Deplete rows */
+.drow {
+  display: grid;
+  grid-template-columns: 180px 1fr 100px;
+  gap: 1.5rem;
+  align-items: center;
+  padding: 1.25rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.dlab {
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.dlab small {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 0.15rem;
+}
+
+.dtr {
+  display: grid;
+  grid-template-columns: 100px 1fr 80px;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0.25rem 0;
+}
+
+.dk {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dk.amber { color: var(--accent); }
+.dk.ink { color: var(--accent-ink); }
+
+.dtr small {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-align: right;
+}
+
+.ddelta {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.75rem;
+  color: var(--bad);
+  text-align: right;
+  line-height: 1;
+}
+
+.ddelta small {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  font-weight: 400;
+  font-style: normal;
+  text-transform: uppercase;
+  margin-top: 0.25rem;
+}
+
+.verdict {
+  border-left: 3px solid var(--accent);
+  background: rgba(180, 83, 9, 0.04);
+  padding: 1.5rem 1.75rem;
+  margin-top: 1.5rem;
+}
+
+.verdict h4 {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+}
+
+.verdict p {
+  color: var(--text-muted);
+  font-size: 0.98rem;
+  line-height: 1.7;
+}
+
+.verdict p strong { color: var(--text); font-weight: 500; }
+
+/* ECG */
+.ecgbox {
+  border: 1px solid var(--border);
+  background: var(--bg-alt);
+  padding: 0.75rem;
+  overflow: hidden;
+}
+
+.ecg-sweep {
+  animation: ecgd 3.4s linear infinite;
+}
+
+@keyframes ecgd { to { stroke-dashoffset: -100; } }
+
+.wcards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.wcard {
+  border: 1px solid var(--border);
+  background: var(--bg-alt);
+  padding: 1.5rem;
+  transition: transform 0.2s;
+}
+
+.wcard:hover { transform: translateY(-3px); }
+
+.wcard h4 {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+  color: var(--accent);
+}
+
+.wcard .n {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 2.25rem;
+  color: var(--accent);
+  line-height: 1;
+  margin-bottom: 0.75rem;
+}
+
+.wcard p {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.wcard p strong { color: var(--text); font-weight: 500; }
+
+/* ---------- Code ---------- */
+.codebox {
+  border: 1px solid var(--border);
+  background: var(--bg-code);
+}
+
+.codehead {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.fname {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.copy {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 0.35rem 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.copy:hover { color: var(--accent); border-color: var(--accent); }
+
+.codelegend {
+  display: flex;
+  gap: 1.5rem;
+  padding: 0.6rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  flex-wrap: wrap;
+}
+
+.codelegend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  vertical-align: -1px;
+  margin-right: 0.5rem;
+}
+
+pre {
+  padding: 1.25rem 0;
+  overflow-x: auto;
+  counter-reset: l;
+}
+
+.cl {
+  display: block;
+  padding: 0 1.25rem 0 3.5rem;
+  position: relative;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  line-height: 1.85;
+  color: var(--text);
+  white-space: pre;
+  border-left: 3px solid transparent;
+}
+
+.cl::before {
+  counter-increment: l;
+  content: counter(l, decimal-leading-zero);
+  position: absolute;
+  left: 1rem;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  top: 0.15rem;
+}
+
+.cl.lh {
+  border-left-color: var(--accent);
+  background: rgba(180, 83, 9, 0.04);
+}
+
+.cl.le {
+  border-left-color: var(--accent-ink);
+  background: rgba(30, 58, 95, 0.04);
+}
+
+.k { color: var(--accent-deep); font-weight: 500; }
+.c { color: var(--text-dim); font-style: italic; }
+.f { color: var(--accent-ink); }
+.s { color: var(--accent); }
+.t { color: var(--accent-deep); }
+
+/* Stamps */
+.stamps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stamp {
+  border: 1px solid var(--border);
+  background: var(--bg-alt);
+  padding: 1.75rem;
+  position: relative;
+}
+
+.stamp .x {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  font-family: var(--mono);
+  font-weight: 500;
+  color: var(--bad);
+  border: 1.5px solid var(--bad);
+  padding: 0.1rem 0.5rem;
+  font-size: 0.75rem;
+  transform: rotate(6deg);
+  opacity: 0.85;
+}
+
+.stamp p {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.65;
+  padding-right: 2rem;
+}
+
+.stamp p strong { color: var(--text); font-weight: 500; }
+
+.core {
+  border-left: 3px solid var(--accent);
+  background: rgba(180, 83, 9, 0.04);
+  padding: 1.75rem 2rem;
+}
+
+.core h4 {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+}
+
+.core p {
+  font-size: 1.05rem;
+  color: var(--text);
+  line-height: 1.7;
+  max-width: 78ch;
+}
+
+/* ---------- Footer ---------- */
+footer {
+  padding: 5rem 0 3rem;
+  border-top: 1px solid var(--border);
+}
+
+.fword {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(3rem, 11vw, 8rem);
+  line-height: 0.95;
+  color: transparent;
+  -webkit-text-stroke: 1px var(--border-strong);
+  margin-bottom: 2.5rem;
+  letter-spacing: -0.02em;
+}
+
+.frow {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 2rem 0 1.5rem;
+}
+
+.frow a {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border-strong);
+  padding-bottom: 2px;
+  transition: all 0.2s;
+}
+
+.frow a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+.fmeta {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+/* ---------- Reveal ---------- */
+.rv {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.rv.in {
+  opacity: 1;
+  transform: none;
+}
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--text);
+  color: var(--bg);
+  padding: 0.6rem 1.25rem;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  opacity: 0;
+  transition: all 0.3s;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .container { padding: 0 1.5rem; }
+  .masthead { padding: 4.5rem 0 3.5rem; }
+  section.content { padding: 4rem 0; }
+
+  nav { display: none; }
+
+  .jobs, .para, .egrid, .wcards, .stamps {
+    grid-template-columns: 1fr;
+  }
+
+  .arch { grid-template-columns: 1fr; }
+
+  .lens {
+    grid-template-columns: 50px 1fr;
+    gap: 1.5rem;
+  }
+
+  .lens .lvis { grid-column: 1 / -1; }
+  .lens .cmp2 { grid-column: 1 / -1; }
+
+  .readouts { grid-template-columns: 1fr 1fr; }
+  .ro:nth-child(2) { border-right: none; }
+  .ro { border-bottom: 1px solid var(--border); }
+
+  .bhead, .brow {
+    grid-template-columns: 110px 1fr 44px 1fr 44px 90px;
+    font-size: 0.8rem;
+  }
+
+  .brow.single {
+    grid-template-columns: 110px 1fr 44px 90px;
+  }
+
+  .drow {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .ddelta { text-align: left; }
+}
+
+@media (max-width: 560px) {
+  .readouts { grid-template-columns: 1fr; }
+  .ro { border-right: none; }
+
+  .bhead, .brow {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+    padding: 0.75rem 0;
+  }
+
+  .bhead { display: none; }
+  .bval { text-align: left; font-size: 0.78rem; }
+
+  .frow { flex-direction: column; gap: 1rem; align-items: flex-start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .rv { opacity: 1; transform: none; }
 }
 </style>
 </head>
 <body>
-<canvas id="bg"></canvas>
-<div id="prog"></div>
 
-<header class="top">
-  <div class="brand">◈ FEN_LAB <em>/ RESEARCH_CORE</em></div>
-  <nav>
-    <a href="#bottleneck">BOTTLENECK</a><a href="#architecture">ARCHITECTURE</a><a href="#intuition">INTUITION</a>
-    <a href="#evidence">EVIDENCE</a><a href="#code">CODE</a><a href="#experiments">EXPERIMENTS</a><a href="#scope">SCOPE</a>
-  </nav>
-  <a class="gh" href="https://github.com/becabytess/Feature-Escrow-Networks" target="_blank" rel="noopener">GITHUB ↗</a>
+<div id="progress"></div>
+
+<header>
+  <div class="container">
+    <div class="nav-inner">
+      <div class="brand">FEN_LAB <em>/ Research Core</em></div>
+      <nav>
+        <a href="#bottleneck">Bottleneck</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#intuition">Intuition</a>
+        <a href="#evidence">Evidence</a>
+        <a href="#code">Code</a>
+        <a href="#experiments">Experiments</a>
+        <a href="#scope">Scope</a>
+      </nav>
+      <a class="gh-link" href="https://github.com/becabytess/Feature-Escrow-Networks" target="_blank" rel="noopener">GitHub ↗</a>
+    </div>
+  </div>
 </header>
 
 <main>
-<!-- ============ MASTHEAD ============ -->
-<style>
-/* ---- masthead v2 · calm type, instrument-first ---- */
-.ttl2{font-family:var(--disp);font-weight:800;text-transform:uppercase;line-height:1.04;letter-spacing:.01em;font-size:clamp(2.05rem,4.4vw,3.4rem);margin-bottom:18px}
-.ttl2 span{display:block}
-.ttl2 .l2{color:var(--cy);text-shadow:0 0 28px rgba(86,217,246,.3)}
-.deck2{font-size:1.02rem;color:var(--mut);max-width:66ch;margin-bottom:26px}
-.deck2 b{color:var(--tx);font-weight:600}
-.mast .chips{margin-bottom:46px}
-.bigfig .svgwrap{max-width:960px;margin:0 auto}
-.readouts{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);background:rgba(7,13,24,.5)}
-.ro{padding:16px 22px 14px;border-right:1px solid var(--line2);transition:background .3s}
-.ro:last-child{border-right:0}
-.ro:hover{background:rgba(86,217,246,.05)}
-.ro .n{font-family:var(--disp);font-weight:700;font-size:1.45rem;line-height:1}
-.ro .l{font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;color:var(--dim);margin-top:7px}
-@media(max-width:820px){.readouts{grid-template-columns:1fr 1fr}.ro:nth-child(2){border-right:0}.ro{border-bottom:1px solid var(--line2)}}
-</style>
 
-<section class="mast">
-  <div class="wrap">
-    <div class="ovl">FEN_LAB // RESEARCH_CORE — REPORT · 01 AUG 2026 <span class="cursor"></span></div>
-    <h1 class="ttl2"><span>Feature–Escrow</span><span class="l2">Networks</span></h1>
-    <p class="deck2">A dual-pathway architecture that <b>decouples temporal dynamics from information preservation</b> — eliminating the single-state memory bottleneck of RNNs and LSTMs via <span class="mka">speculative write-time</span> feature accumulation into an <span class="mkc">O(1) escrow vault</span>.</p>
-    <div class="btnrow">
-      <a class="btn btn-a" href="https://github.com/becabytess/Feature-Escrow-Networks" target="_blank" rel="noopener">VIEW GITHUB REPO ↗</a>
-      <a class="btn btn-c" href="#evidence">JUMP TO EVIDENCE ↓</a>
+<!-- ============ MASTHEAD ============ -->
+<section class="masthead">
+  <div class="container">
+    <div class="mast-label">FEN_LAB · Research Report · 01 Aug 2026</div>
+    <h1 class="mast-title">Feature–<em>Escrow</em> Networks</h1>
+    <p class="mast-deck">
+      A dual-pathway architecture that <strong>decouples temporal dynamics from information preservation</strong> —
+      eliminating the single-state memory bottleneck of RNNs and LSTMs via
+      <em>speculative write-time</em> feature accumulation into an $O(1)$ escrow vault.
+    </p>
+    <div class="mast-cta">
+      <a href="https://github.com/becabytess/Feature-Escrow-Networks" target="_blank" rel="noopener">View GitHub Repository ↗</a>
+      <a href="#evidence">Jump to evidence ↓</a>
     </div>
     <div class="chips">
-      <span class="chip">O(T) TIME</span><span class="chip">O(1) STATE MEMORY</span><span class="chip">PYTORCH 2.0+</span><span class="chip">REPRODUCIBLE SUITE</span><span class="chip">NO QKV · NO CACHE</span>
+      <span class="chip">$O(T)$ time</span>
+      <span class="chip">$O(1)$ state memory</span>
+      <span class="chip">PyTorch 2.0+</span>
+      <span class="chip">Reproducible suite</span>
+      <span class="chip">No QKV · No cache</span>
     </div>
 
-    <figure class="fig bigfig rv">
-      <span class="tick tl"></span><span class="tick tr"></span><span class="tick bl"></span><span class="tick br"></span>
-      <figcaption class="figcap"><span>FIG.00 — LIVE MECHANISM · DUAL PATHWAY</span><span class="live">● LIVE</span></figcaption>
-      <div class="svgwrap">
-        <svg viewBox="0 0 660 430" aria-hidden="true">
-          <defs>
-            <marker id="ma" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L8,4L0,8Z" fill="#ffb454"/></marker>
-            <marker id="mc" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L8,4L0,8Z" fill="#56d9f6"/></marker>
-            <marker id="mw" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L8,4L0,8Z" fill="#e9eef8"/></marker>
-          </defs>
-          <line x1="40" y1="360" x2="470" y2="360" stroke="rgba(148,177,220,.25)"/>
-          <g stroke="rgba(148,177,220,.16)">
-            <line x1="90" y1="355" x2="90" y2="365"/><line x1="120" y1="355" x2="120" y2="365"/><line x1="180" y1="355" x2="180" y2="365"/>
-            <line x1="210" y1="355" x2="210" y2="365"/><line x1="270" y1="355" x2="270" y2="365"/><line x1="300" y1="355" x2="300" y2="365"/>
-            <line x1="360" y1="355" x2="360" y2="365"/><line x1="390" y1="355" x2="390" y2="365"/><line x1="450" y1="355" x2="450" y2="365"/>
-          </g>
-          <g fill="#0c1424" stroke="#ffb454" stroke-width="1.2">
-            <rect x="54" y="354" width="12" height="12"/><rect x="144" y="354" width="12" height="12"/><rect x="234" y="354" width="12" height="12"/>
-            <rect x="324" y="354" width="12" height="12"/><rect x="414" y="354" width="12" height="12"/>
-          </g>
-          <g class="sl ab" text-anchor="middle">
-            <text x="60" y="388">x₁</text><text x="150" y="388">x₂</text><text x="240" y="388">x₃</text><text x="330" y="388">x₄</text><text x="420" y="388">x₅</text>
-          </g>
-          <g stroke="rgba(255,180,84,.35)" marker-end="url(#ma)">
-            <line x1="60" y1="348" x2="60" y2="292"/><line x1="150" y1="348" x2="150" y2="292"/><line x1="240" y1="348" x2="240" y2="292"/>
-            <line x1="330" y1="348" x2="330" y2="292"/><line x1="420" y1="348" x2="420" y2="292"/>
-          </g>
-          <g fill="#0c1424" stroke="#ffb454" stroke-width="1.4">
-            <circle cx="60" cy="270" r="15"/><circle cx="150" cy="270" r="15"/><circle cx="240" cy="270" r="15"/>
-            <circle cx="330" cy="270" r="15"/><circle cx="420" cy="270" r="15"/>
-          </g>
-          <g class="sl ab" text-anchor="middle">
-            <text x="60" y="274">h₁</text><text x="150" y="274">h₂</text><text x="240" y="274">h₃</text><text x="330" y="274">h₄</text><text x="420" y="274">h₅</text>
-          </g>
-          <g stroke="#ffb454" stroke-width="1.2" marker-end="url(#ma)" opacity=".8">
-            <line x1="77" y1="270" x2="131" y2="270"/><line x1="167" y1="270" x2="221" y2="270"/>
-            <line x1="257" y1="270" x2="311" y2="270"/><line x1="347" y1="270" x2="401" y2="270"/>
-          </g>
-          <g fill="none" stroke="#56d9f6" stroke-width="1.2" stroke-dasharray="3 5" opacity=".55">
-            <path id="e1" d="M60,253 C60,170 240,118 428,94"/>
-            <path id="e2" d="M150,253 C150,185 290,132 428,104"/>
-            <path id="e3" d="M240,253 C240,196 330,150 428,114"/>
-            <path id="e5" d="M420,253 C428,214 432,188 434,158"/>
-          </g>
-          <text x="196" y="150" class="sl cyc">φ</text>
-          <text x="302" y="176" class="sl cyc">φ</text>
-          <text x="212" y="102" class="sl cyc" opacity=".85">SPECULATIVE WRITE</text>
-          <rect x="430" y="48" width="190" height="112" rx="8" fill="rgba(86,217,246,.05)" stroke="#56d9f6" stroke-width="1.4"/>
-          <text x="430" y="38" class="sl cyc">E — ESCROW VAULT · Σφ(hₜ)</text>
-          <g fill="#56d9f6">
-            <circle class="vd" cx="458" cy="128" r="4" style="--d:0s"/><circle class="vd" cx="486" cy="120" r="4" style="--d:.55s"/>
-            <circle class="vd" cx="514" cy="130" r="4" style="--d:1.1s"/><circle class="vd" cx="542" cy="118" r="4" style="--d:1.65s"/>
-            <circle class="vd" cx="570" cy="128" r="4" style="--d:2.2s"/><circle class="vd" cx="598" cy="120" r="4" style="--d:2.75s"/>
-            <circle class="vd" cx="472" cy="94" r="4" style="--d:3.3s"/><circle class="vd" cx="528" cy="90" r="4" style="--d:3.85s"/>
-          </g>
-          <path d="M437,270 L466,270" stroke="#e9eef8" stroke-width="1.3" marker-end="url(#mw)"/>
-          <line x1="525" y1="162" x2="525" y2="234" stroke="#56d9f6" stroke-width="1.3" marker-end="url(#mc)"/>
-          <rect class="headbox" x="472" y="240" width="140" height="62" rx="8" fill="#0c1424" stroke="#e9eef8" stroke-width="1.4"/>
-          <text x="542" y="264" class="sl" fill="#e9eef8" text-anchor="middle">DECISION HEAD</text>
-          <text x="542" y="286" class="sl cyc" text-anchor="middle">ŷ = Head([h_T, E])</text>
-          <line x1="614" y1="271" x2="636" y2="271" stroke="#e9eef8" marker-end="url(#mw)"/>
-          <text x="646" y="276" class="sl" fill="#e9eef8">ŷ</text>
-          <text x="40" y="238" class="sl ab">RECURRENT LOOP · hₜ = f(hₜ₋₁, xₜ) · O(1) STATE</text>
-          <text x="40" y="410" class="sl dimm">INPUT STREAM x₁…x_T</text>
-          <text x="472" y="322" class="sl dimm">JOINT READ — ONLY AT DECISION TIME</text>
-          <path id="pIn" d="M40,360 L446,360" fill="none" stroke="none"/>
-          <circle r="3.2" fill="#ffb454"><animateMotion dur="3.4s" repeatCount="indefinite"><mpath href="#pIn"/></animateMotion></circle>
-          <circle r="3.2" fill="#ffb454" opacity=".65"><animateMotion dur="3.4s" begin="1.7s" repeatCount="indefinite"><mpath href="#pIn"/></animateMotion></circle>
-          <path id="pH" d="M77,270 L403,270" fill="none" stroke="none"/>
-          <circle r="2.6" fill="#ffd9a1"><animateMotion dur="3.4s" begin=".5s" repeatCount="indefinite"><mpath href="#pH"/></animateMotion></circle>
-          <circle r="3" fill="#56d9f6"><animateMotion dur="2.6s" repeatCount="indefinite"><mpath href="#e1"/></animateMotion></circle>
-          <circle r="3" fill="#56d9f6"><animateMotion dur="2.6s" begin=".9s" repeatCount="indefinite"><mpath href="#e2"/></animateMotion></circle>
-          <circle r="3" fill="#56d9f6"><animateMotion dur="2.6s" begin="1.8s" repeatCount="indefinite"><mpath href="#e3"/></animateMotion></circle>
-          <circle r="3" fill="#56d9f6"><animateMotion dur="1.6s" begin="1.2s" repeatCount="indefinite"><mpath href="#e5"/></animateMotion></circle>
-        </svg>
-      </div>
+    <figure class="figure rv">
+      <figcaption class="figure-cap">
+        <span>Fig. 00 · Live Mechanism · Dual Pathway</span>
+        <span class="live">● live</span>
+      </figcaption>
+      <svg viewBox="0 0 660 430" aria-hidden="true">
+        <defs>
+          <marker id="ma" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0L8,4L0,8Z" fill="#b45309"/>
+          </marker>
+          <marker id="mc" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0L8,4L0,8Z" fill="#1e3a5f"/>
+          </marker>
+          <marker id="mw" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0L8,4L0,8Z" fill="#1c1917"/>
+          </marker>
+        </defs>
+        <line x1="40" y1="360" x2="470" y2="360" stroke="#ddd9d3"/>
+        <g stroke="#ddd9d3">
+          <line x1="90" y1="355" x2="90" y2="365"/>
+          <line x1="120" y1="355" x2="120" y2="365"/>
+          <line x1="180" y1="355" x2="180" y2="365"/>
+          <line x1="210" y1="355" x2="210" y2="365"/>
+          <line x1="270" y1="355" x2="270" y2="365"/>
+          <line x1="300" y1="355" x2="300" y2="365"/>
+          <line x1="360" y1="355" x2="360" y2="365"/>
+          <line x1="390" y1="355" x2="390" y2="365"/>
+          <line x1="450" y1="355" x2="450" y2="365"/>
+        </g>
+        <g fill="#f6f4ef" stroke="#b45309" stroke-width="1.2">
+          <rect x="54" y="354" width="12" height="12"/>
+          <rect x="144" y="354" width="12" height="12"/>
+          <rect x="234" y="354" width="12" height="12"/>
+          <rect x="324" y="354" width="12" height="12"/>
+          <rect x="414" y="354" width="12" height="12"/>
+        </g>
+        <g fill="#b45309" font-family="JetBrains Mono, monospace" font-size="9.5" text-anchor="middle">
+          <text x="60" y="388">$x_1$</text>
+          <text x="150" y="388">$x_2$</text>
+          <text x="240" y="388">$x_3$</text>
+          <text x="330" y="388">$x_4$</text>
+          <text x="420" y="388">$x_5$</text>
+        </g>
+        <g stroke="#b45309" marker-end="url(#ma)">
+          <line x1="60" y1="348" x2="60" y2="292"/>
+          <line x1="150" y1="348" x2="150" y2="292"/>
+          <line x1="240" y1="348" x2="240" y2="292"/>
+          <line x1="330" y1="348" x2="330" y2="292"/>
+          <line x1="420" y1="348" x2="420" y2="292"/>
+        </g>
+        <g fill="#f6f4ef" stroke="#b45309" stroke-width="1.4">
+          <circle cx="60" cy="270" r="15"/>
+          <circle cx="150" cy="270" r="15"/>
+          <circle cx="240" cy="270" r="15"/>
+          <circle cx="330" cy="270" r="15"/>
+          <circle cx="420" cy="270" r="15"/>
+        </g>
+        <g fill="#b45309" font-family="JetBrains Mono, monospace" font-size="9.5" text-anchor="middle">
+          <text x="60" y="274">$h_1$</text>
+          <text x="150" y="274">$h_2$</text>
+          <text x="240" y="274">$h_3$</text>
+          <text x="330" y="274">$h_4$</text>
+          <text x="420" y="274">$h_5$</text>
+        </g>
+        <g stroke="#b45309" stroke-width="1.2" marker-end="url(#ma)" opacity="0.8">
+          <line x1="77" y1="270" x2="131" y2="270"/>
+          <line x1="167" y1="270" x2="221" y2="270"/>
+          <line x1="257" y1="270" x2="311" y2="270"/>
+          <line x1="347" y1="270" x2="401" y2="270"/>
+        </g>
+        <g fill="none" stroke="#1e3a5f" stroke-width="1.2" stroke-dasharray="3 5" opacity="0.6">
+          <path id="e1" d="M60,253 C60,170 240,118 428,94"/>
+          <path id="e2" d="M150,253 C150,185 290,132 428,104"/>
+          <path id="e3" d="M240,253 C240,196 330,150 428,114"/>
+          <path id="e5" d="M420,253 C428,214 432,188 434,158"/>
+        </g>
+        <text x="196" y="150" fill="#1e3a5f" font-family="JetBrains Mono, monospace" font-size="9.5">$\varphi$</text>
+        <text x="302" y="176" fill="#1e3a5f" font-family="JetBrains Mono, monospace" font-size="9.5">$\varphi$</text>
+        <text x="212" y="102" fill="#1e3a5f" font-family="JetBrains Mono, monospace" font-size="9" opacity="0.85">SPECULATIVE WRITE</text>
+        <rect x="430" y="48" width="190" height="112" rx="4" fill="rgba(30,58,95,0.05)" stroke="#1e3a5f" stroke-width="1.4"/>
+        <text x="430" y="38" fill="#1e3a5f" font-family="JetBrains Mono, monospace" font-size="9.5">$E$ · escrow vault · $\sum_t \varphi(h_t)$</text>
+        <g fill="#1e3a5f">
+          <circle cx="458" cy="128" r="4" class="vd" style="--d:0s"/>
+          <circle cx="486" cy="120" r="4" class="vd" style="--d:0.55s"/>
+          <circle cx="514" cy="130" r="4" class="vd" style="--d:1.1s"/>
+          <circle cx="542" cy="118" r="4" class="vd" style="--d:1.65s"/>
+          <circle cx="570" cy="128" r="4" class="vd" style="--d:2.2s"/>
+          <circle cx="598" cy="120" r="4" class="vd" style="--d:2.75s"/>
+          <circle cx="472" cy="94" r="4" class="vd" style="--d:3.3s"/>
+          <circle cx="528" cy="90" r="4" class="vd" style="--d:3.85s"/>
+        </g>
+        <path d="M437,270 L466,270" stroke="#1c1917" stroke-width="1.3" marker-end="url(#mw)"/>
+        <line x1="525" y1="162" x2="525" y2="234" stroke="#1e3a5f" stroke-width="1.3" marker-end="url(#mc)"/>
+        <rect x="472" y="240" width="140" height="62" rx="4" fill="#f6f4ef" stroke="#1c1917" stroke-width="1.4"/>
+        <text x="542" y="264" fill="#1c1917" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="middle">DECISION HEAD</text>
+        <text x="542" y="286" fill="#1e3a5f" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="middle">$\hat{y} = \text{Head}([h_T, E])$</text>
+        <line x1="614" y1="271" x2="636" y2="271" stroke="#1c1917" marker-end="url(#mw)"/>
+        <text x="646" y="276" fill="#1c1917" font-family="JetBrains Mono, monospace" font-size="9.5">$\hat{y}$</text>
+        <text x="40" y="238" fill="#b45309" font-family="JetBrains Mono, monospace" font-size="9">RECURRENT LOOP · $h_t = f(h_{t-1}, x_t)$ · $O(1)$ state</text>
+        <text x="40" y="410" fill="#a8a29e" font-family="JetBrains Mono, monospace" font-size="9">INPUT STREAM $x_1 \ldots x_T$</text>
+        <text x="472" y="322" fill="#a8a29e" font-family="JetBrains Mono, monospace" font-size="9">JOINT READ · ONLY AT DECISION TIME</text>
+        <path id="pIn" d="M40,360 L446,360" fill="none"/>
+        <circle r="3" fill="#b45309">
+          <animateMotion dur="3.4s" repeatCount="indefinite"><mpath href="#pIn"/></animateMotion>
+        </circle>
+        <circle r="3" fill="#b45309" opacity="0.65">
+          <animateMotion dur="3.4s" begin="1.7s" repeatCount="indefinite"><mpath href="#pIn"/></animateMotion>
+        </circle>
+        <path id="pH" d="M77,270 L403,270" fill="none"/>
+        <circle r="2.5" fill="#b45309">
+          <animateMotion dur="3.4s" begin="0.5s" repeatCount="indefinite"><mpath href="#pH"/></animateMotion>
+        </circle>
+        <circle r="3" fill="#1e3a5f">
+          <animateMotion dur="2.6s" repeatCount="indefinite"><mpath href="#e1"/></animateMotion>
+        </circle>
+        <circle r="3" fill="#1e3a5f">
+          <animateMotion dur="2.6s" begin="0.9s" repeatCount="indefinite"><mpath href="#e2"/></animateMotion>
+        </circle>
+        <circle r="3" fill="#1e3a5f">
+          <animateMotion dur="2.6s" begin="1.8s" repeatCount="indefinite"><mpath href="#e3"/></animateMotion>
+        </circle>
+        <circle r="3" fill="#1e3a5f">
+          <animateMotion dur="1.6s" begin="1.2s" repeatCount="indefinite"><mpath href="#e5"/></animateMotion>
+        </circle>
+        <style>
+          .vd { animation: dep 5.5s var(--d) infinite; }
+          @keyframes dep {
+            0% { opacity: 0; } 8% { opacity: 1; } 78% { opacity: 1; } 92%, 100% { opacity: 0; }
+          }
+        </style>
+      </svg>
       <div class="readouts">
-        <div class="ro"><div class="n amb" data-count="88.7" data-dec="1" data-suf="%">0%</div><div class="l">PEAK ACC — sMNIST · T=400</div></div>
-        <div class="ro"><div class="n cy" data-count="69.1" data-dec="1" data-suf="%">0%</div><div class="l">EPOCH-1 ACC — vs 10.0% LSTM</div></div>
-        <div class="ro"><div class="n" data-count="15" data-suf="×">0×</div><div class="l">SAMPLE EFFICIENCY vs BEST LSTM</div></div>
-        <div class="ro"><div class="n">O(1)</div><div class="l">STATE MEMORY · O(T) TIME</div></div>
+        <div class="ro">
+          <div class="n" data-count="88.7" data-dec="1" data-suf="%">0%</div>
+          <div class="l">Peak accuracy · sMNIST, $T=400$</div>
+        </div>
+        <div class="ro">
+          <div class="n" data-count="69.1" data-dec="1" data-suf="%">0%</div>
+          <div class="l">Epoch-1 accuracy · vs 10.0% LSTM</div>
+        </div>
+        <div class="ro">
+          <div class="n" data-count="15" data-suf="×">0×</div>
+          <div class="l">Sample efficiency vs best LSTM</div>
+        </div>
+        <div class="ro">
+          <div class="n">$O(1)$</div>
+          <div class="l">State memory · $O(T)$ time</div>
+        </div>
       </div>
     </figure>
   </div>
 </section>
 
-<!-- ticker -->
+<!-- Ticker -->
 <div class="ticker" aria-hidden="true">
-  <div class="tkwrap">
-    <div class="tk">
-      <span class="amb">88.7% PEAK ON sMNIST</span><span class="cy">69.1% EPOCH-1 ACCURACY</span><span>O(T) TIME · O(1) MEMORY</span>
-      <span class="amb">15× SAMPLE EFFICIENCY OVER BEST-TUNED LSTM</span><span class="cy">95.1% DUAL-ROLE COUNTING</span>
-      <span>96–100% EXACT ORDERED RECALL</span><span class="cy">23.9% CIFAR-100 @ T=1024</span><span class="amb">SPECULATIVE WRITE-TIME ATTENTION</span>
-    </div>
-    <div class="tk">
-      <span class="amb">88.7% PEAK ON sMNIST</span><span class="cy">69.1% EPOCH-1 ACCURACY</span><span>O(T) TIME · O(1) MEMORY</span>
-      <span class="amb">15× SAMPLE EFFICIENCY OVER BEST-TUNED LSTM</span><span class="cy">95.1% DUAL-ROLE COUNTING</span>
-      <span>96–100% EXACT ORDERED RECALL</span><span class="cy">23.9% CIFAR-100 @ T=1024</span><span class="amb">SPECULATIVE WRITE-TIME ATTENTION</span>
-    </div>
+  <div class="ticker-track">
+    <span>88.7% peak on sMNIST</span>
+    <span>69.1% epoch-1 accuracy</span>
+    <span>$O(T)$ time · $O(1)$ memory</span>
+    <span>15× sample efficiency over best-tuned LSTM</span>
+    <span>95.1% dual-role counting</span>
+    <span>96–100% exact ordered recall</span>
+    <span>23.9% CIFAR-100 @ $T=1024$</span>
+    <span>Speculative write-time attention</span>
+    <span>88.7% peak on sMNIST</span>
+    <span>69.1% epoch-1 accuracy</span>
+    <span>$O(T)$ time · $O(1)$ memory</span>
+    <span>15× sample efficiency over best-tuned LSTM</span>
+    <span>95.1% dual-role counting</span>
+    <span>96–100% exact ordered recall</span>
+    <span>23.9% CIFAR-100 @ $T=1024$</span>
+    <span>Speculative write-time attention</span>
   </div>
-</div><!-- ============ 01 BOTTLENECK ============ -->
-<section class="sec" id="bottleneck">
-  <div class="wrap">
-    <div class="shead rv"><span class="sidx">01</span><h2>The Recurrent Memory Bottleneck</h2><span class="stag">SINGLE-STATE PATHOLOGY</span></div>
-    <div class="srule"></div>
-    <p class="lead rv">For decades, sequential deep learning forced <span class="mka">step-wise temporal dynamics</span> and
-      <span class="mkc">long-range information preservation</span> to share the exact same state tensor.
-      Every recurrent step risks overwriting past memories — <b>state overwrite is not a bug. It is the architecture.</b></p>
+</div>
 
-    <div class="eqplate rv">
-      <div class="eq"><span class="amb">h<sub>T</sub></span> = f( <span class="amb">h<sub>T−1</sub></span>, <span class="amb">h<sub>T−2</sub></span>, … , x<sub>1</sub>, … , x<sub>T</sub> )</div>
-      <div class="eqcap">ONE STATE TENSOR · TWO ANTAGONISTIC JOBS · <span class="bad">TO DECIDE AT STEP T, EVERYTHING MUST SURVIVE INSIDE h</span></div>
+<!-- ============ 01 BOTTLENECK ============ -->
+<section class="content" id="bottleneck">
+  <div class="container">
+    <div class="sec-head rv">
+      <span class="sec-num">01</span>
+      <h2>The Recurrent Memory Bottleneck</h2>
+      <span class="sec-tag">Single-state pathology</span>
+    </div>
+    <div class="sec-rule"></div>
+    <p class="lead rv">
+      For decades, sequential deep learning forced <em>step-wise temporal dynamics</em> and
+      <em>long-range information preservation</em> to share the exact same state tensor.
+      Every recurrent step risks overwriting past memories — <strong>state overwrite is not a bug. It is the architecture.</strong>
+    </p>
+
+    <div class="eq-plate rv">
+      <div class="eq">$$h_T = f\bigl(h_{T-1},\, h_{T-2},\, \ldots,\, x_1, \ldots, x_T\bigr)$$</div>
+      <div class="eq-cap">
+        One state tensor · two antagonistic jobs ·
+        <span class="warn">to decide at step $T$, everything must survive inside $h$</span>
+      </div>
     </div>
 
     <div class="jobs rv">
-      <div class="job"><h4 class="amb">JOB A — TEMPORAL DYNAMICS</h4><p>Counting, local state transformation, noise filtering. Needs a fast, freely-updating state that can forget.</p></div>
-      <div class="job c"><h4 class="cy">JOB B — LONG-RANGE PRESERVATION</h4><p>Carry a fact from t = 1 to t = T intact. Needs a state that never changes. The two jobs fight over the same bits.</p></div>
+      <div class="job">
+        <h4>Job A · Temporal Dynamics</h4>
+        <p>Counting, local state transformation, noise filtering. Needs a fast, freely-updating state that can forget.</p>
+      </div>
+      <div class="job escrow">
+        <h4>Job B · Long-Range Preservation</h4>
+        <p>Carry a fact from $t = 1$ to $t = T$ intact. Needs a state that never changes. The two jobs fight over the same bits.</p>
+      </div>
     </div>
 
     <div class="para">
       <div class="ppanel legacy rv">
-        <div class="phead" style="color:var(--bad)">LEGACY PARADIGM — RNN / LSTM</div>
-        <div class="psub">"CARRY MEMORIES STEP-BY-STEP INSIDE THE ACTIVE LOOP UNTIL NEEDED."</div>
-        <div class="prow"><span class="k">MECHANISM</span><span class="v">Internal gating negotiates update vs storage inside one hₜ</span></div>
-        <div class="prow"><span class="k">TIME</span><span class="v mono">O(T)</span></div>
-        <div class="prow"><span class="k">STATE MEMORY</span><span class="v mono">O(1)</span></div>
-        <div class="prow"><span class="k">FAILURE MODE</span><span class="v">Overwriting · gradient attenuation across long horizons</span></div>
-        <div class="pbig"><span class="n" style="color:var(--bad)">10.0%</span><span class="l">sMNIST<br>EPOCH-1 ACC</span></div>
-        <div class="pchips"><span class="st bad">STATE OVERWRITE</span><span class="st bad">VANISHING GRADIENTS</span></div>
+        <div class="phead">Legacy Paradigm · RNN / LSTM</div>
+        <div class="psub">"Carry memories step-by-step inside the active loop until needed."</div>
+        <div class="prow"><span class="k">Mechanism</span><span class="v">Internal gating negotiates update vs storage inside one $h_t$</span></div>
+        <div class="prow"><span class="k">Time</span><span class="v">$O(T)$</span></div>
+        <div class="prow"><span class="k">State Memory</span><span class="v">$O(1)$</span></div>
+        <div class="prow"><span class="k">Failure mode</span><span class="v">Overwriting · gradient attenuation across long horizons</span></div>
+        <div class="pbig"><span class="n">10.0%</span><span class="l">sMNIST<br>Epoch-1 accuracy</span></div>
+        <div class="pchips"><span class="st bad">State overwrite</span><span class="st bad">Vanishing gradients</span></div>
       </div>
       <div class="ppanel fen rv">
-        <div class="phead cy">FEN — FEATURE-ESCROW NETWORKS (OURS)</div>
-        <div class="psub">"SPECULATE WHAT IS WORTH PRESERVING AS IT APPEARS — DEPOSIT IT INTO ESCROW."</div>
-        <div class="prow"><span class="k">MECHANISM</span><span class="v">Unconstrained recurrent loop + auxiliary vault <span class="mono cy">E = Σₜ φ(hₜ)</span></span></div>
-        <div class="prow"><span class="k">TIME</span><span class="v mono">O(T) — LINEAR</span></div>
-        <div class="prow"><span class="k">STATE MEMORY</span><span class="v mono">O(1)</span></div>
-        <div class="prow"><span class="k">DECISION</span><span class="v">Head evaluates <span class="mono">[h_T, E]</span> — joint read at decision time</span></div>
-        <div class="pbig"><span class="n cy">69.1%</span><span class="l">sMNIST<br>EPOCH-1 ACC</span></div>
-        <div class="pchips"><span class="st cy">ATTENTION-GRADE PRESERVATION</span><span class="st ok">NO QKV · NO CACHE</span></div>
+        <div class="phead">FEN · Feature-Escrow Networks (Ours)</div>
+        <div class="psub">"Speculate what is worth preserving as it appears — deposit it into escrow."</div>
+        <div class="prow"><span class="k">Mechanism</span><span class="v">Unconstrained recurrent loop + auxiliary vault $E = \sum_t \varphi(h_t)$</span></div>
+        <div class="prow"><span class="k">Time</span><span class="v">$O(T)$ · linear</span></div>
+        <div class="prow"><span class="k">State Memory</span><span class="v">$O(1)$</span></div>
+        <div class="prow"><span class="k">Decision</span><span class="v">Head evaluates $[h_T, E]$ — joint read at decision time</span></div>
+        <div class="pbig"><span class="n">69.1%</span><span class="l">sMNIST<br>Epoch-1 accuracy</span></div>
+        <div class="pchips"><span class="st ink">Attention-grade preservation</span><span class="st ok">No QKV · No cache</span></div>
       </div>
     </div>
-    <div class="pnote rv"><b>And the Transformer?</b> It escapes the bottleneck by caching all past states h₁…h_T and performing read-time QKV retrieval — accurate, but it pays <span class="mono">O(T²)</span> compute and heavy KV-cache memory. FEN keeps the preservation, refuses the bill.</div>
+    <div class="pnote rv">
+      <strong>And the Transformer?</strong> It escapes the bottleneck by caching all past states $h_1 \ldots h_T$ and performing
+      read-time QKV retrieval — accurate, but it pays $O(T^2)$ compute and heavy KV-cache memory.
+      FEN keeps the preservation, refuses the bill.
+    </div>
   </div>
 </section>
 
 <!-- ============ 02 ARCHITECTURE ============ -->
-<section class="sec" id="architecture">
-  <div class="wrap">
-    <div class="shead rv"><span class="sidx">02</span><h2>Dual-Pathway Architecture</h2><span class="stag">ACTIVE TRANSFORMATION ⊕ PASSIVE ACCUMULATION</span></div>
-    <div class="srule"></div>
-    <p class="lead rv">The computational flow splits in two: an <span class="mka">active state transformation</span> pathway runs with unconstrained temporal dynamics, while a <span class="mkc">passive escrow pathway</span> continuously extracts and accumulates features. Every FEN variant is built from two modular switches.</p>
+<section class="content" id="architecture">
+  <div class="container">
+    <div class="sec-head rv">
+      <span class="sec-num">02</span>
+      <h2>Dual-Pathway Architecture</h2>
+      <span class="sec-tag">Active transformation ⊕ passive accumulation</span>
+    </div>
+    <div class="sec-rule"></div>
+    <p class="lead rv">
+      The computational flow splits in two: an <em>active state transformation</em> pathway runs with unconstrained temporal dynamics,
+      while a <em>passive escrow pathway</em> continuously extracts and accumulates features. Every FEN variant is built from two modular switches.
+    </p>
 
     <div class="plates rv">
-      <div class="plate pa">hₜ = f(hₜ₋₁, xₜ)</div>
-      <div class="plate pc">E ← Σₜ φ(hₜ)</div>
-      <div class="plate">ŷ = Head([h_T, E])</div>
+      <div class="plate active">$h_t = f(h_{t-1},\, x_t)$</div>
+      <div class="plate escrow">$E \leftarrow \sum_t \varphi(h_t)$</div>
+      <div class="plate">$\hat{y} = \text{Head}([h_T,\, E])$</div>
     </div>
 
     <div class="arch">
       <div class="cpanel rv">
-        <div class="cphead">ARCHITECTURAL SWITCHES <span>EVERY VARIANT = 2 CHOICES</span></div>
-        <div class="cplab">SWITCH A — WRITE MODE</div>
-        <div class="modes">
-          <button class="mode" data-m="bag"><b>BAG</b><i>Σ φ(hₜ) · commutative</i></button>
-          <button class="mode" data-m="slots"><b>SLOTS / HARD TAPE</b><i>E[k] ← E[k]+vₜ · addressable</i></button>
-          <button class="mode on" data-m="roll"><b>CHANNEL-ROLL ★</b><i>non-commutative circular shift</i></button>
-          <button class="mode" data-m="hybrid"><b>HYBRID</b><i>bag ⊕ roll in parallel</i></button>
+        <div class="cphead">
+          Architectural switches
+          <span>Every variant = 2 choices</span>
         </div>
-        <div class="cplab">SWITCH B — DEPLETION MODE</div>
-        <label class="sw"><input type="checkbox" id="depSw"><span class="trk"><span class="knob"></span></span><span class="swlab" id="depLab">OFF — hₜ UNMODIFIED</span></label>
+        <div class="cplab">Switch A · Write mode</div>
+        <div class="modes">
+          <button class="mode" data-m="bag"><b>Bag</b><i>$\sum \varphi(h_t)$ · commutative</i></button>
+          <button class="mode" data-m="slots"><b>Slots / Hard Tape</b><i>$E[k] \leftarrow E[k]+v_t$</i></button>
+          <button class="mode on" data-m="roll"><b>Channel-Roll ★</b><i>non-commutative shift</i></button>
+          <button class="mode" data-m="hybrid"><b>Hybrid</b><i>bag ⊕ roll in parallel</i></button>
+        </div>
+        <div class="cplab">Switch B · Depletion mode</div>
+        <label class="sw">
+          <input type="checkbox" id="depSw">
+          <span class="trk"><span class="knob"></span></span>
+          <span class="swlab" id="depLab">Off · $h_t$ unmodified</span>
+        </label>
         <div class="scr">
-          <div><span class="k">MODE</span><span class="v cy" id="roName">CHANNEL-ROLL VAULT</span></div>
-          <div><span class="k">OPERATION</span><span class="v" id="roOp">Eₜ ← (1−γ)Eₜ₋₁ + γ·Roll(Eₜ₋₁) + vₜ</span></div>
-          <div><span class="k">TARGET JOB</span><span class="v" id="roJob">Long ordered scans — pixels · audio · sensors</span></div>
-          <div><span class="k">FIELD NOTE</span><span class="v amb" id="roNote">sMNIST 88.7% peak · pMNIST 87.5% — true temporal escrow</span></div>
-          <div class="grow"><span class="k">PIPE NORM ‖h‖</span><div class="gauge"><i id="gf" style="height:89%"></i></div><span class="v" id="depNote">5.36 — pure accumulation · universal default</span></div>
+          <div><span class="k">Mode</span><span class="v ink" id="roName">Channel-Roll Vault</span></div>
+          <div><span class="k">Operation</span><span class="v" id="roOp">$E_t \leftarrow (1-\gamma)E_{t-1} + \gamma \cdot \text{Roll}(E_{t-1}) + v_t$</span></div>
+          <div><span class="k">Target job</span><span class="v" id="roJob">Long ordered scans · pixels, audio, sensors</span></div>
+          <div><span class="k">Field note</span><span class="v amber" id="roNote">sMNIST 88.7% peak · pMNIST 87.5% — true temporal escrow</span></div>
+          <div class="grow">
+            <span class="k">Pipe norm $\|h\|$</span>
+            <div class="gauge"><i id="gf" style="height:89%"></i></div>
+            <span class="v" id="depNote">5.36 · pure accumulation · universal default</span>
+          </div>
         </div>
       </div>
 
       <div class="stage rv">
-        <div class="sthead"><span id="vizName">CHANNEL-ROLL VAULT</span><span class="chip" id="depBadge">DEPLETION OFF · PURE ACCUMULATION</span></div>
+        <div class="sthead">
+          <span id="vizName">Channel-Roll Vault</span>
+          <span class="chip" id="depBadge">Depletion off · Pure accumulation</span>
+        </div>
         <div class="vstage">
           <div class="vv" data-v="bag">
             <div class="bagviz">
-              <i style="left:12%;top:22%;width:13px;height:13px"></i><i style="left:48%;top:12%;width:10px;height:10px;animation-delay:.4s"></i>
-              <i style="left:74%;top:30%;width:15px;height:15px;animation-delay:.9s"></i><i style="left:28%;top:52%;width:11px;height:11px;animation-delay:1.3s"></i>
-              <i style="left:60%;top:56%;width:13px;height:13px;animation-delay:.2s"></i><i style="left:84%;top:64%;width:9px;height:9px;animation-delay:1.7s"></i>
-              <i style="left:16%;top:76%;width:12px;height:12px;animation-delay:.7s"></i><i style="left:44%;top:80%;width:14px;height:14px;animation-delay:1.1s"></i>
+              <i style="left:12%;top:22%;width:13px;height:13px"></i>
+              <i style="left:48%;top:12%;width:10px;height:10px;animation-delay:0.4s"></i>
+              <i style="left:74%;top:30%;width:15px;height:15px;animation-delay:0.9s"></i>
+              <i style="left:28%;top:52%;width:11px;height:11px;animation-delay:1.3s"></i>
+              <i style="left:60%;top:56%;width:13px;height:13px;animation-delay:0.2s"></i>
+              <i style="left:84%;top:64%;width:9px;height:9px;animation-delay:1.7s"></i>
+              <i style="left:16%;top:76%;width:12px;height:12px;animation-delay:0.7s"></i>
+              <i style="left:44%;top:80%;width:14px;height:14px;animation-delay:1.1s"></i>
             </div>
           </div>
           <div class="vv" data-v="slots">
             <div class="slotviz">
-              <div class="cell"><i style="animation-delay:0s"></i><em>k=0</em></div>
-              <div class="cell"><i style="animation-delay:.55s"></i><em>k=1</em></div>
-              <div class="cell"><i style="animation-delay:1.1s"></i><em>k=2</em></div>
-              <div class="cell"><i style="animation-delay:1.65s"></i><em>k=3</em></div>
-              <div class="cell"><i style="animation-delay:2.2s"></i><em>k=4</em></div>
-              <div class="cell"><i style="animation-delay:2.75s"></i><em>k=5</em></div>
+              <div class="cell"><i style="animation-delay:0s"></i><em>$k{=}0$</em></div>
+              <div class="cell"><i style="animation-delay:0.55s"></i><em>$k{=}1$</em></div>
+              <div class="cell"><i style="animation-delay:1.1s"></i><em>$k{=}2$</em></div>
+              <div class="cell"><i style="animation-delay:1.65s"></i><em>$k{=}3$</em></div>
+              <div class="cell"><i style="animation-delay:2.2s"></i><em>$k{=}4$</em></div>
+              <div class="cell"><i style="animation-delay:2.75s"></i><em>$k{=}5$</em></div>
             </div>
           </div>
           <div class="vv on" data-v="roll">
             <div class="rollviz">
-              <span class="whl">WRITE HEAD vₜ</span><span class="wh">▼</span>
+              <span class="whl">Write head $v_t$</span><span class="wh">▼</span>
               <div class="ring">
-                <i style="--a:0deg"></i><i style="--a:45deg"></i><i style="--a:90deg"></i><i style="--a:135deg"></i>
-                <i style="--a:180deg"></i><i style="--a:225deg"></i><i style="--a:270deg"></i><i style="--a:315deg"></i>
+                <i style="--a:0deg"></i><i style="--a:45deg"></i>
+                <i style="--a:90deg"></i><i style="--a:135deg"></i>
+                <i style="--a:180deg"></i><i style="--a:225deg"></i>
+                <i style="--a:270deg"></i><i style="--a:315deg"></i>
               </div>
-              <div class="rollcore">E</div>
+              <div class="rollcore">$E$</div>
             </div>
           </div>
           <div class="vv" data-v="hybrid">
             <div class="hyviz">
               <div class="bagviz">
-                <i style="left:14%;top:20%;width:11px;height:11px"></i><i style="left:56%;top:14%;width:9px;height:9px;animation-delay:.5s"></i>
-                <i style="left:70%;top:58%;width:12px;height:12px;animation-delay:1s"></i><i style="left:26%;top:64%;width:10px;height:10px;animation-delay:1.4s"></i>
+                <i style="left:14%;top:20%;width:11px;height:11px"></i>
+                <i style="left:56%;top:14%;width:9px;height:9px;animation-delay:0.5s"></i>
+                <i style="left:70%;top:58%;width:12px;height:12px;animation-delay:1s"></i>
+                <i style="left:26%;top:64%;width:10px;height:10px;animation-delay:1.4s"></i>
               </div>
               <span class="hysep">⊕</span>
               <div class="rollviz">
-                <div class="ring"><i style="--a:0deg"></i><i style="--a:60deg"></i><i style="--a:120deg"></i><i style="--a:180deg"></i><i style="--a:240deg"></i><i style="--a:300deg"></i></div>
-                <div class="rollcore" style="font-size:1.1rem">E</div>
+                <div class="ring">
+                  <i style="--a:0deg"></i><i style="--a:60deg"></i>
+                  <i style="--a:120deg"></i><i style="--a:180deg"></i>
+                  <i style="--a:240deg"></i><i style="--a:300deg"></i>
+                </div>
+                <div class="rollcore" style="font-size:1.1rem">$E$</div>
               </div>
             </div>
           </div>
@@ -668,138 +2200,190 @@ footer{margin-top:130px;border-top:1px solid var(--line);padding:70px 0 46px;pos
     </div>
 
     <div class="doctrine rv">
-      <span class="doc ok">✓ DECISION-TIME READ — Head([h_T, E]) · DEFAULT &amp; OPTIMAL</span>
-      <span class="doc bad">✗ EVERY-STEP REINJECTION E→hₜ — SEVERE NORM BLOAT · REJECTED (exp04)</span>
-      <span class="doc bad">✗ MULTI-PASS SCANS — NO GAIN OVER SINGLE PASS (exp06)</span>
+      <span class="doc ok">✓ Decision-time read · $\text{Head}([h_T, E])$ · default &amp; optimal</span>
+      <span class="doc bad">✗ Every-step reinjection $E \to h_t$ · severe norm bloat · rejected (exp04)</span>
+      <span class="doc bad">✗ Multi-pass scans · no gain over single pass (exp06)</span>
     </div>
   </div>
 </section>
 
 <!-- ============ 03 INTUITION ============ -->
-<section class="sec" id="intuition">
-  <div class="wrap">
-    <div class="shead rv"><span class="sidx">03</span><h2>Biological &amp; Theoretical Intuition</h2><span class="stag">THREE COMPLEMENTARY LENSES</span></div>
-    <div class="srule"></div>
+<section class="content" id="intuition">
+  <div class="container">
+    <div class="sec-head rv">
+      <span class="sec-num">03</span>
+      <h2>Biological &amp; Theoretical Intuition</h2>
+      <span class="sec-tag">Three complementary lenses</span>
+    </div>
+    <div class="sec-rule"></div>
 
     <div class="lens rv">
-      <div class="num">α</div>
+      <div class="num">$\alpha$</div>
       <div>
         <h3>The Small-Intestine Doctrine</h3>
         <p>Nutrients don't ride the full length of the intestinal tube before absorption. The moment a particle is digested, it diffuses through the wall into the bloodstream — it never mixes with material still moving down the tract.</p>
-        <p>Standard RNNs treat memory like a closed pipe where everything must be dragged to the end. FEN treats features like nutrients: <b>deposit when ready</b>, and free the active loop for digestion.</p>
-        <div class="map"><b>DIGESTIVE FLUID</b> → active loop hₜ &nbsp;·&nbsp; <b>NUTRIENTS</b> → features φ(hₜ) &nbsp;·&nbsp; <b>BLOODSTREAM</b> → escrow vault E</div>
+        <p>Standard RNNs treat memory like a closed pipe where everything must be dragged to the end. FEN treats features like nutrients: <strong>deposit when ready</strong>, and free the active loop for digestion.</p>
+        <div class="map">
+          <strong>Digestive fluid</strong> → active loop $h_t$ ·
+          <strong>Nutrients</strong> → features $\varphi(h_t)$ ·
+          <strong>Bloodstream</strong> → escrow vault $E$
+        </div>
       </div>
       <div class="lvis">
         <svg viewBox="0 0 560 250" aria-hidden="true">
-          <path d="M20,42 C110,24 210,58 310,40 S 480,30 540,46" fill="none" stroke="#56d9f6" stroke-width="2" opacity=".8"/>
-          <text x="20" y="18" class="sl cyc">ABSORBED FEATURES → BLOODSTREAM (ESCROW E)</text>
-          <g fill="none" stroke="#56d9f6" stroke-dasharray="2 5" opacity=".5">
-            <path id="a1" d="M150,148 C150,110 152,78 156,48"/><path id="a2" d="M300,156 C300,116 302,84 305,44"/><path id="a3" d="M440,150 C440,112 442,80 445,46"/>
+          <path d="M20,42 C110,24 210,58 310,40 S 480,30 540,46" fill="none" stroke="#1e3a5f" stroke-width="2" opacity="0.8"/>
+          <text x="20" y="18" fill="#1e3a5f" font-family="JetBrains Mono, monospace" font-size="9">ABSORBED FEATURES → BLOODSTREAM ($E$)</text>
+          <g fill="none" stroke="#1e3a5f" stroke-dasharray="2 5" opacity="0.5">
+            <path id="a1" d="M150,148 C150,110 152,78 156,48"/>
+            <path id="a2" d="M300,156 C300,116 302,84 305,44"/>
+            <path id="a3" d="M440,150 C440,112 442,80 445,46"/>
           </g>
-          <path d="M20,150 C110,138 210,166 310,152 C410,138 480,142 540,154 L540,200 C480,188 410,212 310,198 C210,212 110,186 20,196 Z" fill="rgba(255,180,84,.05)"/>
-          <path d="M20,150 C110,138 210,166 310,152 C410,138 480,142 540,154" fill="none" stroke="rgba(255,180,84,.6)" stroke-width="1.5"/>
-          <path d="M20,196 C110,186 210,212 310,198 C410,186 480,190 540,200" fill="none" stroke="rgba(255,180,84,.6)" stroke-width="1.5"/>
-          <g stroke="rgba(255,180,84,.35)">
-            <line x1="70" y1="147" x2="70" y2="159"/><line x1="110" y1="145" x2="110" y2="157"/><line x1="190" y1="152" x2="190" y2="164"/>
-            <line x1="230" y1="157" x2="230" y2="169"/><line x1="270" y1="156" x2="270" y2="168"/><line x1="350" y1="148" x2="350" y2="160"/>
-            <line x1="390" y1="144" x2="390" y2="156"/><line x1="470" y1="146" x2="470" y2="158"/><line x1="510" y1="149" x2="510" y2="161"/>
+          <path d="M20,150 C110,138 210,166 310,152 C410,138 480,142 540,154 L540,200 C480,188 410,212 310,198 C210,212 110,186 20,196 Z" fill="rgba(180,83,9,0.06)"/>
+          <path d="M20,150 C110,138 210,166 310,152 C410,138 480,142 540,154" fill="none" stroke="#b45309" stroke-width="1.5" opacity="0.7"/>
+          <path d="M20,196 C110,186 210,212 310,198 C410,186 480,190 540,200" fill="none" stroke="#b45309" stroke-width="1.5" opacity="0.7"/>
+          <g stroke="#b45309" opacity="0.4">
+            <line x1="70" y1="147" x2="70" y2="159"/>
+            <line x1="110" y1="145" x2="110" y2="157"/>
+            <line x1="190" y1="152" x2="190" y2="164"/>
+            <line x1="230" y1="157" x2="230" y2="169"/>
+            <line x1="270" y1="156" x2="270" y2="168"/>
+            <line x1="350" y1="148" x2="350" y2="160"/>
+            <line x1="390" y1="144" x2="390" y2="156"/>
+            <line x1="470" y1="146" x2="470" y2="158"/>
+            <line x1="510" y1="149" x2="510" y2="161"/>
           </g>
-          <path id="fp" d="M20,175 C110,162 210,190 310,176 C410,162 480,166 540,178" fill="none" stroke="none"/>
-          <circle r="4" fill="#ffb454"><animateMotion dur="9s" repeatCount="indefinite"><mpath href="#fp"/></animateMotion></circle>
-          <circle r="4" fill="#ffb454" opacity=".7"><animateMotion dur="9s" begin="3s" repeatCount="indefinite"><mpath href="#fp"/></animateMotion></circle>
-          <circle r="4" fill="#ffb454" opacity=".5"><animateMotion dur="9s" begin="6s" repeatCount="indefinite"><mpath href="#fp"/></animateMotion></circle>
-          <circle r="2.6" fill="#56d9f6"><animateMotion dur="2.8s" repeatCount="indefinite"><mpath href="#a1"/></animateMotion></circle>
-          <circle r="2.6" fill="#56d9f6"><animateMotion dur="2.8s" begin=".9s" repeatCount="indefinite"><mpath href="#a2"/></animateMotion></circle>
-          <circle r="2.6" fill="#56d9f6"><animateMotion dur="2.8s" begin="1.8s" repeatCount="indefinite"><mpath href="#a3"/></animateMotion></circle>
-          <text x="20" y="234" class="sl ab">DIGESTIVE TRACT — ACTIVE RECURRENT LOOP (hₜ)</text>
+          <path id="fp" d="M20,175 C110,162 210,190 310,176 C410,162 480,166 540,178" fill="none"/>
+          <circle r="4" fill="#b45309"><animateMotion dur="9s" repeatCount="indefinite"><mpath href="#fp"/></animateMotion></circle>
+          <circle r="4" fill="#b45309" opacity="0.7"><animateMotion dur="9s" begin="3s" repeatCount="indefinite"><mpath href="#fp"/></animateMotion></circle>
+          <circle r="4" fill="#b45309" opacity="0.5"><animateMotion dur="9s" begin="6s" repeatCount="indefinite"><mpath href="#fp"/></animateMotion></circle>
+          <circle r="2.6" fill="#1e3a5f"><animateMotion dur="2.8s" repeatCount="indefinite"><mpath href="#a1"/></animateMotion></circle>
+          <circle r="2.6" fill="#1e3a5f"><animateMotion dur="2.8s" begin="0.9s" repeatCount="indefinite"><mpath href="#a2"/></animateMotion></circle>
+          <circle r="2.6" fill="#1e3a5f"><animateMotion dur="2.8s" begin="1.8s" repeatCount="indefinite"><mpath href="#a3"/></animateMotion></circle>
+          <text x="20" y="234" fill="#b45309" font-family="JetBrains Mono, monospace" font-size="9">DIGESTIVE TRACT · ACTIVE RECURRENT LOOP ($h_t$)</text>
         </svg>
       </div>
     </div>
 
     <div class="lens rv">
-      <div class="num">β</div>
+      <div class="num">$\beta$</div>
       <div>
         <h3>Speculative Write-Time Attention</h3>
-        <p>Transformer attention is <b>read-time backward selection</b>: wait until step T, issue a query Q_T, and dot-product against every cached key — quadratic cost for the privilege of looking back.</p>
-        <p>FEN inverts the arrow. During training, φ(hₜ) learns to <b>anticipate what the decision head will need</b>, extracts it the instant it appears, and locks it into an O(1) vault. Attention's core benefit — selective, uncorrupted preservation — with no QKV, no caching, no O(T²).</p>
+        <p>Transformer attention is <strong>read-time backward selection</strong>: wait until step $T$, issue a query $Q_T$, and dot-product against every cached key — quadratic cost for the privilege of looking back.</p>
+        <p>FEN inverts the arrow. During training, $\varphi(h_t)$ learns to <strong>anticipate what the decision head will need</strong>, extracts it the instant it appears, and locks it into an $O(1)$ vault. Attention's core benefit — selective, uncorrupted preservation — with no QKV, no caching, no $O(T^2)$.</p>
       </div>
       <div class="cmp2">
-        <div class="cmp">
-          <h5 style="color:var(--bad)">READ-TIME — TRANSFORMER</h5>
+        <div class="cmp attention">
+          <h5>Read-time · Transformer</h5>
           <svg viewBox="0 0 280 180" aria-hidden="true">
-            <g fill="#0c1424" stroke="rgba(148,177,220,.4)">
-              <rect x="18" y="112" width="22" height="22"/><rect x="52" y="112" width="22" height="22"/><rect x="86" y="112" width="22" height="22"/>
-              <rect x="120" y="112" width="22" height="22"/><rect x="154" y="112" width="22" height="22"/><rect x="188" y="112" width="22" height="22"/>
+            <g fill="#f6f4ef" stroke="#a8a29e">
+              <rect x="18" y="112" width="22" height="22"/>
+              <rect x="52" y="112" width="22" height="22"/>
+              <rect x="86" y="112" width="22" height="22"/>
+              <rect x="120" y="112" width="22" height="22"/>
+              <rect x="154" y="112" width="22" height="22"/>
+              <rect x="188" y="112" width="22" height="22"/>
             </g>
-            <g class="sl dimm" text-anchor="middle"><text x="29" y="152">h₁</text><text x="63" y="152">h₂</text><text x="97" y="152">h₃</text><text x="131" y="152">h₄</text><text x="165" y="152">h₅</text><text x="199" y="152">h₆</text></g>
-            <rect x="222" y="24" width="28" height="28" fill="#0c1424" stroke="#ffb454" stroke-width="1.4"/>
-            <text x="236" y="42" class="sl ab" text-anchor="middle">Q_T</text>
-            <g stroke="#ff6b7a" stroke-dasharray="3 4">
-              <line class="attn" x1="224" y1="50" x2="29" y2="112"/><line class="attn" x1="226" y1="52" x2="63" y2="112" style="animation-delay:.3s"/>
-              <line class="attn" x1="228" y1="52" x2="97" y2="112" style="animation-delay:.6s"/><line class="attn" x1="232" y1="52" x2="131" y2="112" style="animation-delay:.9s"/>
-              <line class="attn" x1="234" y1="52" x2="165" y2="112" style="animation-delay:1.2s"/><line class="attn" x1="236" y1="52" x2="199" y2="112" style="animation-delay:1.5s"/>
+            <g fill="#a8a29e" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="middle">
+              <text x="29" y="152">$h_1$</text>
+              <text x="63" y="152">$h_2$</text>
+              <text x="97" y="152">$h_3$</text>
+              <text x="131" y="152">$h_4$</text>
+              <text x="165" y="152">$h_5$</text>
+              <text x="199" y="152">$h_6$</text>
             </g>
-            <text x="18" y="172" class="sl" fill="#ff6b7a">O(T²) · CACHE EVERY STATE</text>
+            <rect x="222" y="24" width="28" height="28" fill="#f6f4ef" stroke="#b45309" stroke-width="1.4"/>
+            <text x="236" y="42" fill="#b45309" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="middle">$Q_T$</text>
+            <g stroke="#991b1b" stroke-dasharray="3 4">
+              <line class="attn" x1="224" y1="50" x2="29" y2="112"/>
+              <line class="attn" x1="226" y1="52" x2="63" y2="112" style="animation-delay:0.3s"/>
+              <line class="attn" x1="228" y1="52" x2="97" y2="112" style="animation-delay:0.6s"/>
+              <line class="attn" x1="232" y1="52" x2="131" y2="112" style="animation-delay:0.9s"/>
+              <line class="attn" x1="234" y1="52" x2="165" y2="112" style="animation-delay:1.2s"/>
+              <line class="attn" x1="236" y1="52" x2="199" y2="112" style="animation-delay:1.5s"/>
+            </g>
+            <text x="18" y="172" fill="#991b1b" font-family="JetBrains Mono, monospace" font-size="9">$O(T^2)$ · cache every state</text>
           </svg>
         </div>
-        <div class="cmp">
-          <h5 class="cy">WRITE-TIME — FEN</h5>
+        <div class="cmp write">
+          <h5>Write-time · FEN</h5>
           <svg viewBox="0 0 280 180" aria-hidden="true">
-            <line x1="16" y1="122" x2="200" y2="122" stroke="rgba(255,180,84,.4)"/>
-            <rect x="196" y="24" width="70" height="46" rx="6" fill="rgba(86,217,246,.06)" stroke="#56d9f6" stroke-width="1.3"/>
-            <text x="231" y="52" class="sl cyc" text-anchor="middle">E</text>
-            <g stroke="#56d9f6" stroke-dasharray="2 4" opacity=".6" fill="none">
-              <path id="w1" d="M60,118 C60,92 120,68 196,50"/><path id="w2" d="M110,118 C110,96 150,76 196,56"/><path id="w3" d="M160,118 C160,100 178,84 196,62"/>
+            <line x1="16" y1="122" x2="200" y2="122" stroke="#b45309" opacity="0.5"/>
+            <rect x="196" y="24" width="70" height="46" rx="4" fill="rgba(30,58,95,0.06)" stroke="#1e3a5f" stroke-width="1.3"/>
+            <text x="231" y="52" fill="#1e3a5f" font-family="JetBrains Mono, monospace" font-size="10" text-anchor="middle">$E$</text>
+            <g stroke="#1e3a5f" stroke-dasharray="2 4" opacity="0.6" fill="none">
+              <path id="w1" d="M60,118 C60,92 120,68 196,50"/>
+              <path id="w2" d="M110,118 C110,96 150,76 196,56"/>
+              <path id="w3" d="M160,118 C160,100 178,84 196,62"/>
             </g>
-            <path id="w0" d="M16,122 L198,122" fill="none" stroke="none"/>
-            <circle r="3.4" fill="#ffb454"><animateMotion dur="3s" repeatCount="indefinite"><mpath href="#w0"/></animateMotion></circle>
-            <circle r="2.4" fill="#56d9f6"><animateMotion dur="2s" repeatCount="indefinite"><mpath href="#w1"/></animateMotion></circle>
-            <circle r="2.4" fill="#56d9f6"><animateMotion dur="2s" begin=".7s" repeatCount="indefinite"><mpath href="#w2"/></animateMotion></circle>
-            <circle r="2.4" fill="#56d9f6"><animateMotion dur="2s" begin="1.4s" repeatCount="indefinite"><mpath href="#w3"/></animateMotion></circle>
-            <text x="16" y="172" class="sl cyc">O(T) · DEPOSIT ON ARRIVAL</text>
+            <path id="w0" d="M16,122 L198,122" fill="none"/>
+            <circle r="3" fill="#b45309"><animateMotion dur="3s" repeatCount="indefinite"><mpath href="#w0"/></animateMotion></circle>
+            <circle r="2.4" fill="#1e3a5f"><animateMotion dur="2s" repeatCount="indefinite"><mpath href="#w1"/></animateMotion></circle>
+            <circle r="2.4" fill="#1e3a5f"><animateMotion dur="2s" begin="0.7s" repeatCount="indefinite"><mpath href="#w2"/></animateMotion></circle>
+            <circle r="2.4" fill="#1e3a5f"><animateMotion dur="2s" begin="1.4s" repeatCount="indefinite"><mpath href="#w3"/></animateMotion></circle>
+            <text x="16" y="172" fill="#1e3a5f" font-family="JetBrains Mono, monospace" font-size="9">$O(T)$ · deposit on arrival</text>
           </svg>
         </div>
       </div>
     </div>
 
     <div class="lens rv">
-      <div class="num">γ</div>
+      <div class="num">$\gamma$</div>
       <div>
         <h3>Gradient Highways</h3>
-        <p>In recurrent models, error from step T must crawl backward through T sequential matrix multiplications and forget gates — attenuating at every hop.</p>
-        <p>In FEN, the head connects <b>directly</b> to E = Σₜ φ(hₜ). Backprop delivers an un-bottlenecked shortcut from the loss to every historical state simultaneously. That immediate supervision is why FEN learns at epoch 1 what LSTMs need weeks of epochs to approach.</p>
+        <p>In recurrent models, error from step $T$ must crawl backward through $T$ sequential matrix multiplications and forget gates — attenuating at every hop.</p>
+        <p>In FEN, the head connects <strong>directly</strong> to $E = \sum_t \varphi(h_t)$. Backprop delivers an un-bottlenecked shortcut from the loss to every historical state simultaneously. That immediate supervision is why FEN learns at epoch 1 what LSTMs need weeks of epochs to approach.</p>
       </div>
       <div class="lvis">
         <svg viewBox="0 0 560 270" aria-hidden="true">
-          <defs><marker id="mr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0L8,4L0,8Z" fill="#ff6b7a"/></marker></defs>
-          <line x1="185" y1="26" x2="185" y2="252" stroke="rgba(148,177,220,.15)" stroke-dasharray="3 5"/>
-          <circle cx="280" cy="40" r="14" fill="#0c1424" stroke="#e9eef8" stroke-width="1.4"/>
-          <text x="280" y="44" class="sl" fill="#e9eef8" text-anchor="middle">L</text>
-          <text x="302" y="34" class="sl dimm">DECISION LOSS</text>
-          <g fill="#0c1424" stroke="#ff6b7a">
-            <circle cx="120" cy="80" r="10" stroke-opacity=".8"/><circle cx="80" cy="130" r="10" stroke-opacity=".55"/>
-            <circle cx="120" cy="180" r="10" stroke-opacity=".35"/><circle cx="80" cy="230" r="10" stroke-opacity=".2"/>
+          <defs>
+            <marker id="mr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0L8,4L0,8Z" fill="#991b1b"/>
+            </marker>
+          </defs>
+          <line x1="185" y1="26" x2="185" y2="252" stroke="#ddd9d3" stroke-dasharray="3 5"/>
+          <circle cx="280" cy="40" r="14" fill="#f6f4ef" stroke="#1c1917" stroke-width="1.4"/>
+          <text x="280" y="44" fill="#1c1917" font-family="JetBrains Mono, monospace" font-size="10" text-anchor="middle">$\mathcal{L}$</text>
+          <text x="302" y="34" fill="#a8a29e" font-family="JetBrains Mono, monospace" font-size="9">Decision loss</text>
+          <g fill="#f6f4ef" stroke="#991b1b">
+            <circle cx="120" cy="80" r="10" stroke-opacity="0.8"/>
+            <circle cx="80" cy="130" r="10" stroke-opacity="0.55"/>
+            <circle cx="120" cy="180" r="10" stroke-opacity="0.35"/>
+            <circle cx="80" cy="230" r="10" stroke-opacity="0.2"/>
           </g>
-          <g stroke="#ff6b7a" fill="none" marker-end="url(#mr)">
-            <path d="M113,89 L88,120" stroke-opacity=".7"/><path d="M87,139 L113,170" stroke-opacity=".45"/><path d="M113,189 L88,220" stroke-opacity=".25"/>
+          <g stroke="#991b1b" fill="none" marker-end="url(#mr)">
+            <path d="M113,89 L88,120" stroke-opacity="0.7"/>
+            <path d="M87,139 L113,170" stroke-opacity="0.45"/>
+            <path d="M113,189 L88,220" stroke-opacity="0.25"/>
           </g>
-          <text x="136" y="84" class="sl" fill="#ff6b7a">h_T</text>
-          <text x="26" y="258" class="sl" fill="#ff6b7a" opacity=".75">T BACKPROP STEPS — ATTENUATED</text>
-          <g stroke="#56d9f6" stroke-width="2" opacity=".7">
-            <line x1="230" y1="228" x2="272" y2="56"/><line x1="310" y1="228" x2="283" y2="56"/>
-            <line x1="390" y1="228" x2="292" y2="58"/><line x1="470" y1="228" x2="300" y2="62"/>
+          <text x="136" y="84" fill="#991b1b" font-family="JetBrains Mono, monospace" font-size="10">$h_T$</text>
+          <text x="26" y="258" fill="#991b1b" font-family="JetBrains Mono, monospace" font-size="9" opacity="0.75">$T$ backprop steps · attenuated</text>
+          <g stroke="#1e3a5f" stroke-width="2" opacity="0.7">
+            <line x1="230" y1="228" x2="272" y2="56"/>
+            <line x1="310" y1="228" x2="283" y2="56"/>
+            <line x1="390" y1="228" x2="292" y2="58"/>
+            <line x1="470" y1="228" x2="300" y2="62"/>
           </g>
-          <g fill="#0c1424" stroke="#56d9f6" stroke-width="1.4">
-            <circle cx="230" cy="235" r="7"/><circle cx="310" cy="235" r="7"/><circle cx="390" cy="235" r="7"/><circle cx="470" cy="235" r="7"/>
+          <g fill="#f6f4ef" stroke="#1e3a5f" stroke-width="1.4">
+            <circle cx="230" cy="235" r="7"/>
+            <circle cx="310" cy="235" r="7"/>
+            <circle cx="390" cy="235" r="7"/>
+            <circle cx="470" cy="235" r="7"/>
           </g>
-          <g class="sl cyc" text-anchor="middle"><text x="230" y="258">φ(h₁)</text><text x="310" y="258">φ(h₂)</text><text x="390" y="258">φ(h₃)</text><text x="470" y="258">φ(h₄)</text></g>
-          <path id="g1" d="M230,228 L272,58" fill="none" stroke="none"/><path id="g2" d="M310,228 L283,58" fill="none" stroke="none"/>
-          <path id="g3" d="M390,228 L292,60" fill="none" stroke="none"/><path id="g4" d="M470,228 L300,64" fill="none" stroke="none"/>
-          <circle r="2.8" fill="#56d9f6"><animateMotion dur="1.8s" repeatCount="indefinite"><mpath href="#g1"/></animateMotion></circle>
-          <circle r="2.8" fill="#56d9f6"><animateMotion dur="1.8s" begin=".45s" repeatCount="indefinite"><mpath href="#g2"/></animateMotion></circle>
-          <circle r="2.8" fill="#56d9f6"><animateMotion dur="1.8s" begin=".9s" repeatCount="indefinite"><mpath href="#g3"/></animateMotion></circle>
-          <circle r="2.8" fill="#56d9f6"><animateMotion dur="1.8s" begin="1.35s" repeatCount="indefinite"><mpath href="#g4"/></animateMotion></circle>
-          <text x="330" y="140" class="sl cyc">DIRECT SUPERVISION — UN-BOTTLENECKED</text>
+          <g fill="#1e3a5f" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="middle">
+            <text x="230" y="258">$\varphi(h_1)$</text>
+            <text x="310" y="258">$\varphi(h_2)$</text>
+            <text x="390" y="258">$\varphi(h_3)$</text>
+            <text x="470" y="258">$\varphi(h_4)$</text>
+          </g>
+          <path id="g1" d="M230,228 L272,58" fill="none"/>
+          <path id="g2" d="M310,228 L283,58" fill="none"/>
+          <path id="g3" d="M390,228 L292,60" fill="none"/>
+          <path id="g4" d="M470,228 L300,64" fill="none"/>
+          <circle r="2.8" fill="#1e3a5f"><animateMotion dur="1.8s" repeatCount="indefinite"><mpath href="#g1"/></animateMotion></circle>
+          <circle r="2.8" fill="#1e3a5f"><animateMotion dur="1.8s" begin="0.45s" repeatCount="indefinite"><mpath href="#g2"/></animateMotion></circle>
+          <circle r="2.8" fill="#1e3a5f"><animateMotion dur="1.8s" begin="0.9s" repeatCount="indefinite"><mpath href="#g3"/></animateMotion></circle>
+          <circle r="2.8" fill="#1e3a5f"><animateMotion dur="1.8s" begin="1.35s" repeatCount="indefinite"><mpath href="#g4"/></animateMotion></circle>
+          <text x="330" y="140" fill="#1e3a5f" font-family="JetBrains Mono, monospace" font-size="9">Direct supervision · un-bottlenecked</text>
         </svg>
       </div>
     </div>
@@ -807,349 +2391,555 @@ footer{margin-top:130px;border-top:1px solid var(--line);padding:70px 0 46px;pos
 </section>
 
 <!-- ============ 04 EVIDENCE ============ -->
-<section class="sec" id="evidence">
-  <div class="wrap">
-    <div class="shead rv"><span class="sidx">04</span><h2>Empirical Studies</h2><span class="stag">17 REPRODUCIBLE EXPERIMENTS · fen_lab/</span></div>
-    <div class="srule"></div>
+<section class="content" id="evidence">
+  <div class="container">
+    <div class="sec-head rv">
+      <span class="sec-num">04</span>
+      <h2>Empirical Studies</h2>
+      <span class="sec-tag">17 reproducible experiments · fen_lab/</span>
+    </div>
+    <div class="sec-rule"></div>
 
     <!-- 4.1 -->
     <div class="evhead rv"><span class="eid">4.1</span><h3>Foundation Probes</h3></div>
-    <div class="evsub">SYNTHETIC PROBES · T=96 · ~15K PARAMS — FORCING DUAL-ROLE OVERWRITING AND EXACT ORDERING INTO THE OPEN</div>
+    <div class="evsub">Synthetic probes · $T{=}96$ · $\sim$15K params — forcing dual-role overwriting and exact ordering into the open</div>
     <div class="egrid">
       <div class="epanel rv">
-        <h4>DISTRACTED COUNTING <span class="amb">· DUAL-ROLE STATE TEST</span></h4>
-        <div class="esub">STATIC ID AT t=0 + 95 STEPS OF DISTRACTOR NOISE · JOINT PEAK ACCURACY</div>
-        <div class="brow single"><div class="blab">Residual RNN</div><div class="btrack"><div class="bar rd" data-w="9"></div></div><div class="bval">9.0</div><div><span class="st bad">OVERWRITE</span></div></div>
-        <div class="brow single"><div class="blab">LSTM Baseline</div><div class="btrack"><div class="bar rd" data-w="10"></div></div><div class="bval">10.0</div><div><span class="st bad">OVERWRITE</span></div></div>
-        <div class="brow single"><div class="blab">FEN Slot<em>HARD TAPE</em></div><div class="btrack"><div class="bar dep" data-w="19"></div></div><div class="bval">19.0</div><div><span class="st warn">WRONG TOPOLOGY</span></div></div>
-        <div class="brow single"><div class="blab">FEN Bag + Deplete</div><div class="btrack"><div class="bar pk" data-w="77.5"></div></div><div class="bval">77.5</div><div><span class="st ok">SOLVED</span></div></div>
-        <div class="brow single"><div class="blab">FEN Bag<em>fen_copy · NO DEPELTE</em></div><div class="btrack"><div class="bar pk" data-w="95.1"></div></div><div class="bval">95.1</div><div><span class="st cy">OPTIMAL</span></div></div>
+        <h4>Distracted Counting <span class="amber">· dual-role state test</span></h4>
+        <div class="esub">Static ID at $t{=}0$ + 95 steps of distractor noise · joint peak accuracy</div>
+        <div class="brow single"><div class="blab">Residual RNN</div><div class="btrack"><div class="bar bad" data-w="9"></div></div><div class="bval">9.0</div><div><span class="st bad">Overwrite</span></div></div>
+        <div class="brow single"><div class="blab">LSTM Baseline</div><div class="btrack"><div class="bar bad" data-w="10"></div></div><div class="bval">10.0</div><div><span class="st bad">Overwrite</span></div></div>
+        <div class="brow single"><div class="blab">FEN Slot<em>hard tape</em></div><div class="btrack"><div class="bar dep" data-w="19"></div></div><div class="bval">19.0</div><div><span class="st warn">Wrong topology</span></div></div>
+        <div class="brow single"><div class="blab">FEN Bag + Deplete</div><div class="btrack"><div class="bar amber" data-w="77.5"></div></div><div class="bval">77.5</div><div><span class="st ok">Solved</span></div></div>
+        <div class="brow single"><div class="blab">FEN Bag<em>fen_copy · no deplete</em></div><div class="btrack"><div class="bar amber" data-w="95.1"></div></div><div class="bval">95.1</div><div><span class="st ink">Optimal</span></div></div>
       </div>
       <div class="epanel rv">
-        <h4>ORDERED RECALL — RECALL5 <span class="cy">· EXACT TOKEN RECOVERY</span></h4>
-        <div class="esub">FIVE TOKENS IN, FIVE TOKENS OUT IN EXACT ORIGINAL ORDER · FULL-SEQUENCE MATCH</div>
-        <div class="brow single"><div class="blab">Residual RNN</div><div class="btrack"><div class="bar rd" data-w="0.5"></div></div><div class="bval">0.0</div><div><span class="st bad">FLOOR</span></div></div>
-        <div class="brow single"><div class="blab">LSTM Baseline</div><div class="btrack"><div class="bar rd" data-w="0.5"></div></div><div class="bval">0.0</div><div><span class="st bad">FLOOR</span></div></div>
-        <div class="brow single"><div class="blab">FEN Bag / Roll<em>POOLED READOUT</em></div><div class="btrack"><div class="bar dep" data-w="0.5"></div></div><div class="bval">~0.0</div><div><span class="st warn">CAN'T ADDRESS</span></div></div>
-        <div class="brow single"><div class="blab">FEN Slot<em>HARD TAPE</em></div><div class="btrack"><div class="bar ep" data-w="96"></div></div><div class="bval">96–100</div><div><span class="st cy">SOLVED</span></div></div>
+        <h4>Ordered Recall — Recall5 <span class="ink">· exact token recovery</span></h4>
+        <div class="esub">Five tokens in, five tokens out in exact original order · full-sequence match</div>
+        <div class="brow single"><div class="blab">Residual RNN</div><div class="btrack"><div class="bar bad" data-w="0.5"></div></div><div class="bval">0.0</div><div><span class="st bad">Floor</span></div></div>
+        <div class="brow single"><div class="blab">LSTM Baseline</div><div class="btrack"><div class="bar bad" data-w="0.5"></div></div><div class="bval">0.0</div><div><span class="st bad">Floor</span></div></div>
+        <div class="brow single"><div class="blab">FEN Bag / Roll<em>pooled readout</em></div><div class="btrack"><div class="bar dep" data-w="0.5"></div></div><div class="bval">~0.0</div><div><span class="st warn">Can't address</span></div></div>
+        <div class="brow single"><div class="blab">FEN Slot<em>hard tape</em></div><div class="btrack"><div class="bar ink" data-w="96"></div></div><div class="bval">96–100</div><div><span class="st ink">Solved</span></div></div>
       </div>
     </div>
-    <div class="takeaway rv"><b>⚠ TOPOLOGY MATCHING —</b> baselines sit at floor (~0–10%) on both probes. Bag solves dual-role retention; Slots solve exact ordered generation. <span class="mono">Using the wrong write topology is a capability failure, not a performance lag.</span></div>
+    <div class="takeaway rv">
+      <strong>⚠ Topology matching —</strong> baselines sit at floor (~0–10%) on both probes. Bag solves dual-role retention; Slots solve exact ordered generation.
+      <span class="mono">Using the wrong write topology is a capability failure, not a performance lag.</span>
+    </div>
 
     <!-- 4.2 -->
-    <div class="evhead rv"><span class="eid">4.2</span><h3>Sequential Digits — sMNIST</h3></div>
-    <div class="evsub">LONG-SCAN CAPABILITY · T=400 PIXEL STREAM · STRICT 100K PARAMETER BUDGET</div>
+    <div class="evhead rv"><span class="eid">4.2</span><h3>Sequential Digits · sMNIST</h3></div>
+    <div class="evsub">Long-scan capability · $T{=}400$ pixel stream · strict 100K parameter budget</div>
     <div class="epanel rv">
-      <h4>SEQUENTIAL MNIST — FULL FEN SWEEP</h4>
-      <div class="esub">EPOCH-1 vs PEAK ACCURACY [%] · DEPLETION ANNOTATED PER VARIANT</div>
-      <div class="bhead"><span>MODEL</span><span>EPOCH-1</span><span></span><span>PEAK</span><span></span><span>STATUS</span></div>
-      <div class="brow"><div class="blab">Residual RNN</div><div class="btrack"><div class="bar ep" data-w="10"></div></div><div class="bval">10.0</div><div class="btrack"><div class="bar rd" data-w="10.2"></div></div><div class="bval">10.2</div><div><span class="st bad">FLOOR</span></div></div>
-      <div class="brow"><div class="blab">LSTM 1-Layer<em>10 EPOCHS</em></div><div class="btrack"><div class="bar ep" data-w="10"></div></div><div class="bval">10.0</div><div class="btrack"><div class="bar rd" data-w="11"></div></div><div class="bval">11.0</div><div><span class="st bad">FLOOR</span></div></div>
-      <div class="brow"><div class="blab">FEN Bag<em>DEPLETED</em></div><div class="btrack"><div class="bar ep" data-w="24"></div></div><div class="bval">24.0</div><div class="btrack"><div class="bar pk" data-w="66.1"></div></div><div class="bval">66.1</div><div><span class="st warn">DEPLETED</span></div></div>
-      <div class="brow"><div class="blab">FEN Copy<em>BAG · NO DEPELTE</em></div><div class="btrack"><div class="bar ep" data-w="35"></div></div><div class="bval">35.0</div><div class="btrack"><div class="bar pk" data-w="77.6"></div></div><div class="bval">77.6</div><div><span class="st ok">NO DEPLETE</span></div></div>
-      <div class="brow"><div class="blab">FEN Roll + Deplete</div><div class="btrack"><div class="bar ep" data-w="64"></div></div><div class="bval">64.0</div><div class="btrack"><div class="bar pk" data-w="88.1"></div></div><div class="bval">88.1</div><div><span class="st warn">DEPLETED</span></div></div>
-      <div class="brow"><div class="blab">FEN Roll<em>roll_nodep</em></div><div class="btrack"><div class="bar ep" data-w="69.1"></div></div><div class="bval">69.1</div><div class="btrack"><div class="bar pk" data-w="88.7"></div></div><div class="bval">88.7</div><div><span class="st cy">UNIVERSAL DEFAULT</span></div></div>
-      <div class="brow"><div class="blab">FEN Hybrid<em>BAG + ROLL</em></div><div class="btrack"><div class="bar ep" data-w="67"></div></div><div class="bval">67.0</div><div class="btrack"><div class="bar pk" data-w="90.6"></div></div><div class="bval">90.6</div><div><span class="st ok">RASTER PEAK</span></div></div>
+      <h4>Sequential MNIST · full FEN sweep</h4>
+      <div class="esub">Epoch-1 vs peak accuracy [%] · depletion annotated per variant</div>
+      <div class="bhead"><span>Model</span><span>Epoch-1</span><span></span><span>Peak</span><span></span><span>Status</span></div>
+      <div class="brow"><div class="blab">Residual RNN</div><div class="btrack"><div class="bar ink" data-w="10"></div></div><div class="bval">10.0</div><div class="btrack"><div class="bar bad" data-w="10.2"></div></div><div class="bval">10.2</div><div><span class="st bad">Floor</span></div></div>
+      <div class="brow"><div class="blab">LSTM 1-Layer<em>10 epochs</em></div><div class="btrack"><div class="bar ink" data-w="10"></div></div><div class="bval">10.0</div><div class="btrack"><div class="bar bad" data-w="11"></div></div><div class="bval">11.0</div><div><span class="st bad">Floor</span></div></div>
+      <div class="brow"><div class="blab">FEN Bag<em>depleted</em></div><div class="btrack"><div class="bar ink" data-w="24"></div></div><div class="bval">24.0</div><div class="btrack"><div class="bar amber" data-w="66.1"></div></div><div class="bval">66.1</div><div><span class="st warn">Depleted</span></div></div>
+      <div class="brow"><div class="blab">FEN Copy<em>bag · no deplete</em></div><div class="btrack"><div class="bar ink" data-w="35"></div></div><div class="bval">35.0</div><div class="btrack"><div class="bar amber" data-w="77.6"></div></div><div class="bval">77.6</div><div><span class="st ok">No deplete</span></div></div>
+      <div class="brow"><div class="blab">FEN Roll + Deplete</div><div class="btrack"><div class="bar ink" data-w="64"></div></div><div class="bval">64.0</div><div class="btrack"><div class="bar amber" data-w="88.1"></div></div><div class="bval">88.1</div><div><span class="st warn">Depleted</span></div></div>
+      <div class="brow"><div class="blab">FEN Roll<em>roll_nodep</em></div><div class="btrack"><div class="bar ink" data-w="69.1"></div></div><div class="bval">69.1</div><div class="btrack"><div class="bar amber" data-w="88.7"></div></div><div class="bval">88.7</div><div><span class="st ink">Universal default</span></div></div>
+      <div class="brow"><div class="blab">FEN Hybrid<em>bag + roll</em></div><div class="btrack"><div class="bar ink" data-w="67"></div></div><div class="bval">67.0</div><div class="btrack"><div class="bar amber" data-w="90.6"></div></div><div class="bval">90.6</div><div><span class="st ok">Raster peak</span></div></div>
     </div>
 
-    <div class="egrid" style="margin-top:24px">
+    <div class="egrid" style="margin-top:1.5rem">
       <div class="epanel rv">
-        <h4>BEST-EFFORT LSTM DEEP SWEEP <span class="amb">· exp08b</span></h4>
-        <div class="esub">30 EPOCHS · DROPOUT · WIDER STATES (~150K PARAMS) · TUNED LR — FOR FAIRNESS</div>
+        <h4>Best-effort LSTM deep sweep <span class="amber">· exp08b</span></h4>
+        <div class="esub">30 epochs · dropout · wider states (~150K params) · tuned LR — for fairness</div>
         <div class="tscroll">
-        <table class="tbl">
-          <tr><th>ARCHITECTURE</th><th>EP-1</th><th>EPOCHS → 50%</th><th>PEAK (EP 30)</th></tr>
-          <tr><td class="msc">LSTM 1L BASELINE</td><td class="msc">10.0</td><td><span class="st bad">NEVER</span></td><td class="msc">47.7</td></tr>
-          <tr><td class="msc">LSTM 2L STANDARD</td><td class="msc">10.0</td><td class="msc">EPOCH 16</td><td class="msc">71.9</td></tr>
-          <tr><td class="msc">LSTM 2L WIDE</td><td class="msc">10.0</td><td class="msc">EPOCH 23</td><td class="msc">72.0</td></tr>
-          <tr><td class="msc">LSTM 2L + DROPOUT</td><td class="msc">10.0</td><td class="msc">EPOCH 13</td><td class="msc">77.4</td></tr>
-          <tr><td class="msc">LSTM 3L BEST-TUNED</td><td class="msc">10.0</td><td class="msc">EPOCH 15</td><td class="msc amb">80.2</td></tr>
-        </table>
+          <table class="tbl">
+            <tr><th>Architecture</th><th>EP-1</th><th>Epochs → 50%</th><th>Peak (EP 30)</th></tr>
+            <tr><td class="msc">LSTM 1L baseline</td><td class="msc">10.0</td><td><span class="st bad">Never</span></td><td class="msc">47.7</td></tr>
+            <tr><td class="msc">LSTM 2L standard</td><td class="msc">10.0</td><td class="msc">Epoch 16</td><td class="msc">71.9</td></tr>
+            <tr><td class="msc">LSTM 2L wide</td><td class="msc">10.0</td><td class="msc">Epoch 23</td><td class="msc">72.0</td></tr>
+            <tr><td class="msc">LSTM 2L + dropout</td><td class="msc">10.0</td><td class="msc">Epoch 13</td><td class="msc">77.4</td></tr>
+            <tr><td class="msc">LSTM 3L best-tuned</td><td class="msc">10.0</td><td class="msc">Epoch 15</td><td class="msc" style="color:var(--accent)">80.2</td></tr>
+          </table>
         </div>
       </div>
       <div class="callout rv">
         <div class="huge">15×</div>
-        <p><b>Sample-efficiency gap.</b> FEN Roll reaches <b>80.0% at epoch 2</b>. The best-tuned 3-layer LSTM needs <b>30 full epochs</b> to touch 80.2%. The gradient highway pays out from the very first update.</p>
+        <p><strong>Sample-efficiency gap.</strong> FEN Roll reaches <strong>80.0% at epoch 2</strong>. The best-tuned 3-layer LSTM needs <strong>30 full epochs</strong> to touch 80.2%. The gradient highway pays out from the very first update.</p>
       </div>
     </div>
 
     <div class="curvebox rv">
       <svg viewBox="0 0 560 320" aria-hidden="true">
-        <g stroke="rgba(148,177,220,.1)"><line x1="40" y1="40" x2="520" y2="40"/><line x1="40" y1="97.5" x2="520" y2="97.5"/><line x1="40" y1="155" x2="520" y2="155"/><line x1="40" y1="212.5" x2="520" y2="212.5"/></g>
-        <line x1="40" y1="270" x2="520" y2="270" stroke="rgba(148,177,220,.3)"/>
-        <g class="sl dimm" text-anchor="end"><text x="34" y="44">100</text><text x="34" y="101">75</text><text x="34" y="159">50</text><text x="34" y="216">25</text><text x="34" y="274">0</text></g>
-        <g class="sl dimm" text-anchor="middle"><text x="40" y="290">EP 1</text><text x="189" y="290">EP 10</text><text x="354" y="290">EP 20</text><text x="520" y="290">EP 30</text></g>
-        <path class="draw" pathLength="1" d="M40,247 C150,238 300,205 520,160" fill="none" stroke="rgba(148,177,220,.4)" stroke-width="1.5" stroke-dasharray="4 5"/>
-        <path class="draw" pathLength="1" d="M40,247 C110,243 190,231 272,217 C360,200 460,140 520,86" fill="none" stroke="#ff6b7a" stroke-width="2.2"/>
-        <path class="draw" pathLength="1" d="M40,111 L57,83 C140,70 300,67 520,66" fill="none" stroke="#56d9f6" stroke-width="2.6"/>
-        <circle cx="57" cy="83" r="4.5" fill="#56d9f6"/><circle cx="520" cy="86" r="4.5" fill="#ff6b7a"/>
-        <text x="70" y="76" class="sl cyc">FEN ROLL — 81.5% @ EPOCH 2</text>
-        <text x="508" y="104" class="sl" fill="#ff6b7a" text-anchor="end">BEST LSTM — 80.2% @ EPOCH 30</text>
-        <text x="44" y="310" class="sl dimm">SCHEMATIC TRAJECTORIES · exp08 / exp08b</text>
+        <g stroke="#ddd9d3">
+          <line x1="40" y1="40" x2="520" y2="40"/>
+          <line x1="40" y1="97.5" x2="520" y2="97.5"/>
+          <line x1="40" y1="155" x2="520" y2="155"/>
+          <line x1="40" y1="212.5" x2="520" y2="212.5"/>
+        </g>
+        <line x1="40" y1="270" x2="520" y2="270" stroke="#b8b3ac"/>
+        <g fill="#a8a29e" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="end">
+          <text x="34" y="44">100</text>
+          <text x="34" y="101">75</text>
+          <text x="34" y="159">50</text>
+          <text x="34" y="216">25</text>
+          <text x="34" y="274">0</text>
+        </g>
+        <g fill="#a8a29e" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="middle">
+          <text x="40" y="290">EP 1</text>
+          <text x="189" y="290">EP 10</text>
+          <text x="354" y="290">EP 20</text>
+          <text x="520" y="290">EP 30</text>
+        </g>
+        <path class="draw" pathLength="1" d="M40,247 C150,238 300,205 520,160" fill="none" stroke="#a8a29e" stroke-width="1.5" stroke-dasharray="4 5"/>
+        <path class="draw" pathLength="1" d="M40,247 C110,243 190,231 272,217 C360,200 460,140 520,86" fill="none" stroke="#991b1b" stroke-width="2.2"/>
+        <path class="draw" pathLength="1" d="M40,111 L57,83 C140,70 300,67 520,66" fill="none" stroke="#1e3a5f" stroke-width="2.6"/>
+        <circle cx="57" cy="83" r="4.5" fill="#1e3a5f"/>
+        <circle cx="520" cy="86" r="4.5" fill="#991b1b"/>
+        <text x="70" y="76" fill="#1e3a5f" font-family="JetBrains Mono, monospace" font-size="9">FEN Roll · 81.5% @ epoch 2</text>
+        <text x="508" y="104" fill="#991b1b" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="end">Best LSTM · 80.2% @ epoch 30</text>
+        <text x="44" y="310" fill="#a8a29e" font-family="JetBrains Mono, monospace" font-size="9">Schematic trajectories · exp08 / exp08b</text>
       </svg>
-      <div class="legend"><span><i style="background:#56d9f6"></i>FEN ROLL (roll_nodep)</span><span><i style="background:#ff6b7a"></i>LSTM 3L BEST-TUNED</span><span><i style="background:rgba(148,177,220,.5)"></i>LSTM 1L BASELINE</span></div>
+      <div class="legend">
+        <span><i style="background:#1e3a5f"></i>FEN Roll (roll_nodep)</span>
+        <span><i style="background:#991b1b"></i>LSTM 3L best-tuned</span>
+        <span><i style="background:#a8a29e"></i>LSTM 1L baseline</span>
+      </div>
     </div>
 
     <!-- 4.3 -->
-    <div class="evhead rv"><span class="eid">4.3</span><h3>Permuted MNIST — Locality Verdict</h3></div>
-    <div class="evsub">FIXED RANDOM PERMUTATION OF THE T=400 STREAM — 2D SPATIAL ADJACENCY DESTROYED, TEMPORAL ORDER PRESERVED</div>
+    <div class="evhead rv"><span class="eid">4.3</span><h3>Permuted MNIST · Locality Verdict</h3></div>
+    <div class="evsub">Fixed random permutation of the $T{=}400$ stream — 2D spatial adjacency destroyed, temporal order preserved</div>
     <div class="egrid">
       <div class="epanel rv">
-        <h4>pMNIST — ORDERED ESCROW vs SPATIAL LOCALITY</h4>
-        <div class="esub">EPOCH-1 vs PEAK ACCURACY [%]</div>
-        <div class="bhead"><span>MODEL</span><span>EPOCH-1</span><span></span><span>PEAK</span><span></span><span>Δ vs sMNIST</span></div>
-        <div class="brow"><div class="blab">FEN Roll<em>NO DEPELTE</em></div><div class="btrack"><div class="bar ep" data-w="60.4"></div></div><div class="bval">60.4</div><div class="btrack"><div class="bar pk" data-w="87.5"></div></div><div class="bval">87.5</div><div><span class="st cy">≈ UNCHANGED</span></div></div>
-        <div class="brow"><div class="blab">FEN Hybrid</div><div class="btrack"><div class="bar ep" data-w="32.7"></div></div><div class="bval">32.7</div><div class="btrack"><div class="bar pk" data-w="84"></div></div><div class="bval">84.0</div><div><span class="st bad">EP-1 COLLAPSE</span></div></div>
-        <div class="brow"><div class="blab">LSTM 1-Layer</div><div class="btrack"><div class="bar ep" data-w="21.8"></div></div><div class="bval">21.8</div><div class="btrack"><div class="bar pk" data-w="79.9"></div></div><div class="bval">79.9</div><div><span class="st warn">SLOW START</span></div></div>
-        <div class="brow"><div class="blab">FEN Copy</div><div class="btrack"><div class="bar ep" data-w="21.8"></div></div><div class="bval">21.8</div><div class="btrack"><div class="bar pk" data-w="58.9"></div></div><div class="bval">58.9</div><div><span class="st warn">ORDER-NAIVE</span></div></div>
-        <div class="brow"><div class="blab">Residual RNN</div><div class="btrack"><div class="bar ep" data-w="40.3"></div></div><div class="bval">40.3</div><div class="btrack"><div class="bar pk" data-w="61.6"></div></div><div class="bval">61.6</div><div><span class="st warn">—</span></div></div>
-        <div class="brow"><div class="blab">FEN Bag</div><div class="btrack"><div class="bar ep" data-w="19.4"></div></div><div class="bval">19.4</div><div class="btrack"><div class="bar pk" data-w="40.2"></div></div><div class="bval">40.2</div><div><span class="st bad">COMMUTATIVE</span></div></div>
+        <h4>pMNIST · ordered escrow vs spatial locality</h4>
+        <div class="esub">Epoch-1 vs peak accuracy [%]</div>
+        <div class="bhead"><span>Model</span><span>Epoch-1</span><span></span><span>Peak</span><span></span><span>$\Delta$ vs sMNIST</span></div>
+        <div class="brow"><div class="blab">FEN Roll<em>no deplete</em></div><div class="btrack"><div class="bar ink" data-w="60.4"></div></div><div class="bval">60.4</div><div class="btrack"><div class="bar amber" data-w="87.5"></div></div><div class="bval">87.5</div><div><span class="st ink">≈ Unchanged</span></div></div>
+        <div class="brow"><div class="blab">FEN Hybrid</div><div class="btrack"><div class="bar ink" data-w="32.7"></div></div><div class="bval">32.7</div><div class="btrack"><div class="bar amber" data-w="84"></div></div><div class="bval">84.0</div><div><span class="st bad">EP-1 collapse</span></div></div>
+        <div class="brow"><div class="blab">LSTM 1-Layer</div><div class="btrack"><div class="bar ink" data-w="21.8"></div></div><div class="bval">21.8</div><div class="btrack"><div class="bar amber" data-w="79.9"></div></div><div class="bval">79.9</div><div><span class="st warn">Slow start</span></div></div>
+        <div class="brow"><div class="blab">FEN Copy</div><div class="btrack"><div class="bar ink" data-w="21.8"></div></div><div class="bval">21.8</div><div class="btrack"><div class="bar amber" data-w="58.9"></div></div><div class="bval">58.9</div><div><span class="st warn">Order-naive</span></div></div>
+        <div class="brow"><div class="blab">Residual RNN</div><div class="btrack"><div class="bar ink" data-w="40.3"></div></div><div class="bval">40.3</div><div class="btrack"><div class="bar amber" data-w="61.6"></div></div><div class="bval">61.6</div><div><span class="st warn">—</span></div></div>
+        <div class="brow"><div class="blab">FEN Bag</div><div class="btrack"><div class="bar ink" data-w="19.4"></div></div><div class="bval">19.4</div><div class="btrack"><div class="bar amber" data-w="40.2"></div></div><div class="bval">40.2</div><div><span class="st bad">Commutative</span></div></div>
       </div>
       <div class="verdict rv" style="margin-top:0;align-self:center">
-        <h4>◆ LOCALITY ABLATION VERDICT</h4>
-        <p>On pMNIST, <b>fen_roll holds 60.4% epoch-1 / 87.5% peak</b> — virtually identical to its raster sMNIST performance. Meanwhile <b>fen_hybrid's epoch-1 collapses from 67% to 32.7%</b> the moment spatial adjacency vanishes. Proof: Channel-Roll is a <b>true ordered non-commutative temporal escrow</b>, not a local raster shortcut.</p>
+        <h4>◆ Locality Ablation Verdict</h4>
+        <p>On pMNIST, <strong>fen_roll holds 60.4% epoch-1 / 87.5% peak</strong> — virtually identical to its raster sMNIST performance. Meanwhile <strong>fen_hybrid's epoch-1 collapses from 67% to 32.7%</strong> the moment spatial adjacency vanishes. Proof: Channel-Roll is a <strong>true ordered non-commutative temporal escrow</strong>, not a local raster shortcut.</p>
       </div>
     </div>
 
     <!-- 4.4 -->
     <div class="evhead rv"><span class="eid">4.4</span><h3>Sequential CIFAR-100 &amp; Hierarchical FEN</h3></div>
-    <div class="evsub">EXTREME SEQUENTIAL STRESS · PATCH REGIMES T=16 → T=256 · PIXEL-LEVEL T=1024</div>
+    <div class="evsub">Extreme sequential stress · patch regimes $T{=}16 \to T{=}256$ · pixel-level $T{=}1024$</div>
     <div class="epanel rv">
-      <h4>SEQUENTIAL CIFAR-100 — PATCH REGIME MAP <span class="amb">· exp10 / exp11</span></h4>
-      <div class="esub">~100K PARAM BUDGET · CHANCE FLOOR = 1.0% · CELL HEAT ∝ PEAK ACC · SMALL = EPOCH-1</div>
+      <h4>Sequential CIFAR-100 · patch regime map <span class="amber">· exp10 / exp11</span></h4>
+      <div class="esub">~100K param budget · chance floor = 1.0% · cell heat $\propto$ peak accuracy · small = epoch-1</div>
       <div class="tscroll">
-      <table class="tbl">
-        <tr><th>REGIME</th><th>SEQUENCE</th><th>FEN ROLL</th><th>FEN HYBRID</th><th>FEN BAG</th><th>LSTM 1L</th><th>RES-RNN</th></tr>
-        <tr><td class="msc">P8 · LOW STRESS</td><td class="msc">T=16 · C=192</td><td class="heat" style="--h:.31">19.9<small>EP1 8.5</small></td><td class="heat" style="--h:.31">19.9<small>EP1 8.4</small></td><td class="heat" style="--h:.28">18.1<small>EP1 7.5</small></td><td class="heat" style="--h:.26">16.9<small>EP1 4.3</small></td><td class="heat" style="--h:.20">13.2<small>EP1 5.3</small></td></tr>
-        <tr><td class="msc">P4 · MID STRESS</td><td class="msc">T=64 · C=48</td><td class="heat" style="--h:.35">21.8<small>EP1 10.5</small></td><td class="heat" style="--h:.35">21.9<small>EP1 8.5</small></td><td class="heat" style="--h:.31">19.7<small>EP1 5.5</small></td><td class="heat" style="--h:.27">17.7<small>EP1 3.2</small></td><td class="heat" style="--h:.11">7.6<small>EP1 3.7</small></td></tr>
-        <tr><td class="msc">P2 · HIGH STRESS</td><td class="msc">T=256 · C=12</td><td class="heat" style="--h:.23">14.9<small>EP1 7.5</small></td><td class="heat" style="--h:.23">14.9<small>EP1 3.7</small></td><td class="heat" style="--h:.04">3.1<small>FLOOR</small></td><td class="heat" style="--h:.15">10.4<small>EP1 2.6</small></td><td class="heat" style="--h:.08">5.8<small>FLOOR</small></td></tr>
-      </table>
+        <table class="tbl">
+          <tr>
+            <th>Regime</th><th>Sequence</th><th>FEN Roll</th><th>FEN Hybrid</th>
+            <th>FEN Bag</th><th>LSTM 1L</th><th>Res-RNN</th>
+          </tr>
+          <tr>
+            <td class="msc">P8 · low stress</td>
+            <td class="msc">$T{=}16 \cdot C{=}192$</td>
+            <td class="heat" style="--h:0.31">19.9<small>EP1 8.5</small></td>
+            <td class="heat" style="--h:0.31">19.9<small>EP1 8.4</small></td>
+            <td class="heat" style="--h:0.28">18.1<small>EP1 7.5</small></td>
+            <td class="heat" style="--h:0.26">16.9<small>EP1 4.3</small></td>
+            <td class="heat" style="--h:0.20">13.2<small>EP1 5.3</small></td>
+          </tr>
+          <tr>
+            <td class="msc">P4 · mid stress</td>
+            <td class="msc">$T{=}64 \cdot C{=}48$</td>
+            <td class="heat" style="--h:0.35">21.8<small>EP1 10.5</small></td>
+            <td class="heat" style="--h:0.35">21.9<small>EP1 8.5</small></td>
+            <td class="heat" style="--h:0.31">19.7<small>EP1 5.5</small></td>
+            <td class="heat" style="--h:0.27">17.7<small>EP1 3.2</small></td>
+            <td class="heat" style="--h:0.11">7.6<small>EP1 3.7</small></td>
+          </tr>
+          <tr>
+            <td class="msc">P2 · high stress</td>
+            <td class="msc">$T{=}256 \cdot C{=}12$</td>
+            <td class="heat" style="--h:0.23">14.9<small>EP1 7.5</small></td>
+            <td class="heat" style="--h:0.23">14.9<small>EP1 3.7</small></td>
+            <td class="heat" style="--h:0.04">3.1<small>Floor</small></td>
+            <td class="heat" style="--h:0.15">10.4<small>EP1 2.6</small></td>
+            <td class="heat" style="--h:0.08">5.8<small>Floor</small></td>
+          </tr>
+        </table>
       </div>
-      <div class="takeaway" style="margin-top:20px"><b>REGIME INSIGHT —</b> as sequences stretch to T=256, FEN Bag and Residual RNN collapse to near-chance (3.1% / 5.8%), while <span class="mono cy">FEN Roll holds 14.9% peak with a dominant 7.5% epoch-1</span>.</div>
+      <div class="takeaway" style="margin-top:1.25rem">
+        <strong>Regime insight —</strong> as sequences stretch to $T{=}256$, FEN Bag and Residual RNN collapse to near-chance (3.1% / 5.8%), while
+        <span class="mono ink">FEN Roll holds 14.9% peak with a dominant 7.5% epoch-1</span>.
+      </div>
     </div>
 
-    <div class="epanel rv" style="margin-top:24px">
-      <h4>HIERARCHICAL FEN — PIXEL-LEVEL T=1024 CIFAR-100 <span class="cy">· exp13</span></h4>
-      <div class="esub">K=32 TEMPORAL CHUNKS OF LENGTH 32 · LOCAL PASS PER CHUNK + GLOBAL PASS ACROSS CHUNK VAULTS</div>
-      <div class="bhead"><span>ARCHITECTURE</span><span>EPOCH-1</span><span></span><span>PEAK</span><span></span><span>STATUS</span></div>
-      <div class="brow"><div class="blab">Hierarchical RNN</div><div class="btrack"><div class="bar ep" data-w="2.18"></div></div><div class="bval">2.18</div><div class="btrack"><div class="bar rd" data-w="5.36"></div></div><div class="bval">5.36</div><div><span class="st bad">FAILED</span></div></div>
-      <div class="brow"><div class="blab">Hier. Residual RNN</div><div class="btrack"><div class="bar ep" data-w="2.73"></div></div><div class="bval">2.73</div><div class="btrack"><div class="bar rd" data-w="5.36"></div></div><div class="bval">5.36</div><div><span class="st bad">FAILED</span></div></div>
-      <div class="brow"><div class="blab">Hier. FEN Roll<em>SINGLE-PASS</em></div><div class="btrack"><div class="bar ep" data-w="10.38"></div></div><div class="bval">10.38</div><div class="btrack"><div class="bar pk" data-w="23.38"></div></div><div class="bval">23.38</div><div><span class="st cy">FAST LEARNER</span></div></div>
-      <div class="brow"><div class="blab">Hier. FEN Sandwich<em>DOUBLE-PASS</em></div><div class="btrack"><div class="bar ep" data-w="8.71"></div></div><div class="bval">8.71</div><div class="btrack"><div class="bar pk" data-w="23.94"></div></div><div class="bval">23.94</div><div><span class="st ok">PEAK</span></div></div>
-      <div class="takeaway" style="margin-top:20px"><b>T=1024 PIXEL STREAMS BECOME TRAINABLE —</b> standard hierarchical RNNs flatline at 5.36%; escrow writes plus hierarchy reach <span class="mono cy">23.9% with 10.4% already at epoch 1</span>.</div>
+    <div class="epanel rv" style="margin-top:1.5rem">
+      <h4>Hierarchical FEN · pixel-level $T{=}1024$ CIFAR-100 <span class="ink">· exp13</span></h4>
+      <div class="esub">$K{=}32$ temporal chunks of length 32 · local pass per chunk + global pass across chunk vaults</div>
+      <div class="bhead"><span>Architecture</span><span>Epoch-1</span><span></span><span>Peak</span><span></span><span>Status</span></div>
+      <div class="brow"><div class="blab">Hierarchical RNN</div><div class="btrack"><div class="bar ink" data-w="2.18"></div></div><div class="bval">2.18</div><div class="btrack"><div class="bar bad" data-w="5.36"></div></div><div class="bval">5.36</div><div><span class="st bad">Failed</span></div></div>
+      <div class="brow"><div class="blab">Hier. Residual RNN</div><div class="btrack"><div class="bar ink" data-w="2.73"></div></div><div class="bval">2.73</div><div class="btrack"><div class="bar bad" data-w="5.36"></div></div><div class="bval">5.36</div><div><span class="st bad">Failed</span></div></div>
+      <div class="brow"><div class="blab">Hier. FEN Roll<em>single-pass</em></div><div class="btrack"><div class="bar ink" data-w="10.38"></div></div><div class="bval">10.38</div><div class="btrack"><div class="bar amber" data-w="23.38"></div></div><div class="bval">23.38</div><div><span class="st ink">Fast learner</span></div></div>
+      <div class="brow"><div class="blab">Hier. FEN Sandwich<em>double-pass</em></div><div class="btrack"><div class="bar ink" data-w="8.71"></div></div><div class="bval">8.71</div><div class="btrack"><div class="bar amber" data-w="23.94"></div></div><div class="bval">23.94</div><div><span class="st ok">Peak</span></div></div>
+      <div class="takeaway" style="margin-top:1.25rem">
+        <strong>$T{=}1024$ pixel streams become trainable —</strong> standard hierarchical RNNs flatline at 5.36%; escrow writes plus hierarchy reach
+        <span class="mono ink">23.9% with 10.4% already at epoch 1</span>.
+      </div>
     </div>
 
     <!-- 4.5 -->
     <div class="evhead rv"><span class="eid">4.5</span><h3>The Deplete Law</h3></div>
-    <div class="evsub">DISSECTING STATE SUBTRACTION h ← h − D · CONTROLLED ABLATIONS · exp12 / exp12b</div>
+    <div class="evsub">Dissecting state subtraction $h \leftarrow h - D$ · controlled ablations · exp12 / exp12b</div>
     <div class="epanel rv">
       <div class="drow">
-        <div class="dlab">Distracted Counting · Bag<small>exp12 · PEAK ACC</small></div>
+        <div class="dlab">Distracted Counting · Bag<small>exp12 · peak accuracy</small></div>
         <div>
-          <div class="dtr"><span class="dk cy">NO DEPELTE</span><div class="btrack"><div class="bar ep" data-w="95.1"></div></div><small>95.1 · ‖h‖ 5.36</small></div>
-          <div class="dtr"><span class="dk ab">DEPELTE ON</span><div class="btrack"><div class="bar dep" data-w="77.5"></div></div><small>77.5 · ‖h‖ 1.84</small></div>
+          <div class="dtr"><span class="dk ink">No deplete</span><div class="btrack"><div class="bar ink" data-w="95.1"></div></div><small>95.1 · $\|h\|$ 5.36</small></div>
+          <div class="dtr"><span class="dk amber">Deplete on</span><div class="btrack"><div class="bar dep" data-w="77.5"></div></div><small>77.5 · $\|h\|$ 1.84</small></div>
         </div>
-        <div class="ddelta">−17.6<small>PEAK COST</small></div>
+        <div class="ddelta">−17.6<small>peak cost</small></div>
       </div>
       <div class="drow">
-        <div class="dlab">Distracted Counting · Roll<small>exp12 · PEAK ACC</small></div>
+        <div class="dlab">Distracted Counting · Roll<small>exp12 · peak accuracy</small></div>
         <div>
-          <div class="dtr"><span class="dk cy">NO DEPELTE</span><div class="btrack"><div class="bar ep" data-w="85.3"></div></div><small>85.3 · ‖h‖ 5.59</small></div>
-          <div class="dtr"><span class="dk ab">DEPELTE ON</span><div class="btrack"><div class="bar dep" data-w="71.5"></div></div><small>71.5 · ‖h‖ 2.38</small></div>
+          <div class="dtr"><span class="dk ink">No deplete</span><div class="btrack"><div class="bar ink" data-w="85.3"></div></div><small>85.3 · $\|h\|$ 5.59</small></div>
+          <div class="dtr"><span class="dk amber">Deplete on</span><div class="btrack"><div class="bar dep" data-w="71.5"></div></div><small>71.5 · $\|h\|$ 2.38</small></div>
         </div>
-        <div class="ddelta">−13.8<small>PEAK COST</small></div>
+        <div class="ddelta">−13.8<small>peak cost</small></div>
       </div>
       <div class="drow">
-        <div class="dlab">sMNIST · Roll<small>exp12b · EPOCH-1 ACC</small></div>
+        <div class="dlab">sMNIST · Roll<small>exp12b · epoch-1 accuracy</small></div>
         <div>
-          <div class="dtr"><span class="dk cy">NO DEPELTE</span><div class="btrack"><div class="bar ep" data-w="69.1"></div></div><small>69.1 → 88.7 peak</small></div>
-          <div class="dtr"><span class="dk ab">DEPELTE ON</span><div class="btrack"><div class="bar dep" data-w="64"></div></div><small>64.0 → 88.1 peak</small></div>
+          <div class="dtr"><span class="dk ink">No deplete</span><div class="btrack"><div class="bar ink" data-w="69.1"></div></div><small>69.1 → 88.7 peak</small></div>
+          <div class="dtr"><span class="dk amber">Deplete on</span><div class="btrack"><div class="bar dep" data-w="64"></div></div><small>64.0 → 88.1 peak</small></div>
         </div>
-        <div class="ddelta">−5.1<small>EP-1 COST</small></div>
+        <div class="ddelta">−5.1<small>EP-1 cost</small></div>
       </div>
     </div>
     <div class="verdict rv">
-      <h4>◆ DEPLICATE LAW — SUMMARY</h4>
-      <p>Depletion is an <b>optional pipe-hygiene switch, not a universal accuracy requirement</b>. Turning it off — pure accumulation in <span class="mono cy">roll_nodep</span> and <span class="mono cy">fen_copy</span> — simplifies the model, yields superior early learning jumps, and achieves peak accuracy. It trims state norm; it does not buy accuracy.</p>
+      <h4>◆ Deplete Law · Summary</h4>
+      <p>Depletion is an <strong>optional pipe-hygiene switch, not a universal accuracy requirement</strong>. Turning it off — pure accumulation in <span class="mono ink">roll_nodep</span> and <span class="mono ink">fen_copy</span> — simplifies the model, yields superior early learning jumps, and achieves peak accuracy. It trims state norm; it does not buy accuracy.</p>
     </div>
 
     <!-- 4.6 -->
     <div class="evhead rv"><span class="eid">4.6</span><h3>Real 1D Waveforms</h3></div>
-    <div class="evsub">MEDICAL &amp; INDUSTRIAL SENSOR BENCHMARKS · exp05 / exp05b</div>
+    <div class="evsub">Medical &amp; industrial sensor benchmarks · exp05 / exp05b</div>
     <div class="ecgbox rv">
       <svg viewBox="0 0 900 160" preserveAspectRatio="none" aria-hidden="true" style="display:block;width:100%;height:160px">
-        <g stroke="rgba(148,177,220,.08)"><line x1="100" y1="0" x2="100" y2="160"/><line x1="250" y1="0" x2="250" y2="160"/><line x1="400" y1="0" x2="400" y2="160"/><line x1="550" y1="0" x2="550" y2="160"/><line x1="700" y1="0" x2="700" y2="160"/><line x1="850" y1="0" x2="850" y2="160"/></g>
-        <path id="ecg" d="M0,90 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h125" fill="none" stroke="#56d9f6" stroke-width="1.5" opacity=".18"/>
-        <path d="M0,90 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h125" fill="none" stroke="#56d9f6" stroke-width="2.5" pathLength="100" stroke-dasharray="14 86" class="ecg-sweep"/>
+        <g stroke="#ddd9d3">
+          <line x1="100" y1="0" x2="100" y2="160"/>
+          <line x1="250" y1="0" x2="250" y2="160"/>
+          <line x1="400" y1="0" x2="400" y2="160"/>
+          <line x1="550" y1="0" x2="550" y2="160"/>
+          <line x1="700" y1="0" x2="700" y2="160"/>
+          <line x1="850" y1="0" x2="850" y2="160"/>
+        </g>
+        <path d="M0,90 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h125" fill="none" stroke="#1e3a5f" stroke-width="1.5" opacity="0.2"/>
+        <path d="M0,90 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h46 l5,-12 l5,12 h12 l4,8 l6,-64 l6,84 l5,-28 h18 l7,-16 l7,16 h34 h125" fill="none" stroke="#1e3a5f" stroke-width="2.5" pathLength="100" stroke-dasharray="14 86" class="ecg-sweep"/>
       </svg>
     </div>
     <div class="wcards">
-      <div class="wcard rv"><h4 class="cy">MIT-BIH — ECG HEARTBEAT CLASSIFICATION</h4><div class="n">~92%+</div><p>FEN Roll and FEN Bag achieve high classification accuracy on raw cardiac signals. <b style="color:var(--bad)">Residual RNNs collapse to the majority class.</b></p></div>
-      <div class="wcard rv"><h4 class="amb">FORDA — ACOUSTIC NOISE CLASSIFICATION</h4><div class="n">DOMINANT</div><p>Residual RNNs sit near chance on raw acoustic sensor waveforms. <b>FEN Roll dominates</b>, demonstrating strong feature extraction over real 1D streams.</p></div>
+      <div class="wcard rv">
+        <h4>MIT-BIH · ECG heartbeat classification</h4>
+        <div class="n">~92%+</div>
+        <p>FEN Roll and FEN Bag achieve high classification accuracy on raw cardiac signals. <strong style="color:var(--bad)">Residual RNNs collapse to the majority class.</strong></p>
+      </div>
+      <div class="wcard rv">
+        <h4>Forda · acoustic noise classification</h4>
+        <div class="n">Dominant</div>
+        <p>Residual RNNs sit near chance on raw acoustic sensor waveforms. <strong>FEN Roll dominates</strong>, demonstrating strong feature extraction over real 1D streams.</p>
+      </div>
     </div>
   </div>
 </section>
 
 <!-- ============ 05 CODE ============ -->
-<section class="sec" id="code">
-  <div class="wrap">
-    <div class="shead rv"><span class="sidx">05</span><h2>PyTorch Implementation</h2><span class="stag">MINIMAL · SELF-CONTAINED · roll_nodep</span></div>
-    <div class="srule"></div>
-    <p class="lead rv" style="margin-bottom:36px">The universal default for sequential classification — Channel-Roll write without depletion. Note the doctrine in the code itself: <span class="mka">amber lines carry the temporal state</span>, <span class="mkc">cyan lines feed the escrow vault</span>.</p>
+<section class="content" id="code">
+  <div class="container">
+    <div class="sec-head rv">
+      <span class="sec-num">05</span>
+      <h2>PyTorch Implementation</h2>
+      <span class="sec-tag">Minimal · self-contained · roll_nodep</span>
+    </div>
+    <div class="sec-rule"></div>
+    <p class="lead rv" style="margin-bottom:2.5rem">
+      The universal default for sequential classification — Channel-Roll write without depletion. Note the doctrine in the code itself:
+      <em>amber lines carry the temporal state</em>, <em>indigo lines feed the escrow vault</em>.
+    </p>
     <div class="codebox rv">
       <div class="codehead">
         <span class="fname">fen_roll_nodep.py</span>
-        <span class="chip">PYTORCH 2.0+</span><span class="chip">~40 LINES</span>
-        <button class="copy" id="copyBtn">COPY ⧉</button>
+        <span class="chip">PyTorch 2.0+</span>
+        <span class="chip">~40 lines</span>
+        <button class="copy" id="copyBtn">Copy ↗</button>
       </div>
       <div class="codelegend">
-        <span><i style="background:rgba(255,180,84,.7)"></i>TEMPORAL PATHWAY h</span>
-        <span><i style="background:rgba(86,217,246,.7)"></i>ESCROW PATHWAY E</span>
+        <span><i style="background:#b45309"></i>Temporal pathway $h$</span>
+        <span><i style="background:#1e3a5f"></i>Escrow pathway $E$</span>
       </div>
-      <pre id="code"><span class="cl"><span class="k">import</span> torch</span><span class="cl"><span class="k">import</span> torch.nn <span class="k">as</span> nn</span><span class="cl"> </span><span class="cl"><span class="k">class</span> <span class="t">FENRollNoDep</span>(nn.Module):</span><span class="cl">    <span class="c">"""</span></span><span class="cl">    <span class="c">Feature-Escrow Network with Channel-Roll Write (No Depletion).</span></span><span class="cl">    <span class="c">Simple, fast, and SOTA among non-attention recurrent architectures.</span></span><span class="cl">    <span class="c">"""</span></span><span class="cl">    <span class="k">def</span> <span class="f">__init__</span>(self, input_dim, hidden_dim, num_classes):</span><span class="cl">        <span class="f">super</span>().__init__()</span><span class="cl">        self.hidden_dim = hidden_dim</span><span class="cl">        self.x_proj   = nn.Linear(input_dim, hidden_dim)</span><span class="cl">        self.core     = nn.Linear(hidden_dim, hidden_dim)</span><span class="cl">        self.gate     = nn.Linear(hidden_dim, hidden_dim)</span><span class="cl">        self.v_proj   = nn.Linear(hidden_dim, hidden_dim)</span><span class="cl">        self.roll_gate = nn.Linear(hidden_dim, <span class="s">1</span>)</span><span class="cl">        self.head     = nn.Linear(hidden_dim * <span class="s">2</span>, num_classes)</span><span class="cl"> </span><span class="cl">    <span class="k">def</span> <span class="f">forward</span>(self, x):</span><span class="cl">        B, T, _ = x.shape</span><span class="cl lh">        h = x.new_zeros(B, self.hidden_dim)</span><span class="cl le">        E = x.new_zeros(B, self.hidden_dim)</span><span class="cl">        x_p = self.x_proj(x)</span><span class="cl">        <span class="k">for</span> t <span class="k">in</span> <span class="f">range</span>(T):</span><span class="cl lh">            z = h + x_p[:, t]</span><span class="cl lh">            f = torch.tanh(self.core(z) + z)        <span class="c"># 1. recurrent state proposal</span></span><span class="cl le">            g = torch.sigmoid(self.gate(f))          <span class="c"># 2. extraction gate</span></span><span class="cl le">            D = g * f</span><span class="cl le">            v = self.v_proj(D)</span><span class="cl lh">            h = f                                    <span class="c"># 3. temporal state — NO depletion</span></span><span class="cl le">            gamma = torch.sigmoid(self.roll_gate(f)) <span class="c"># 4. escrow channel-roll update</span></span><span class="cl le">            E = (<span class="s">1.0</span> - gamma) * E + gamma * torch.roll(E, shifts=<span class="s">1</span>, dims=-<span class="s">1</span>) + v</span><span class="cl">        <span class="c"># 5. joint decision head over [h_T] and escrow vault [E]</span></span><span class="cl">        <span class="k">return</span> self.head(torch.cat([h, E], dim=-<span class="s">1</span>))</span></pre>
+      <pre id="code"><span class="cl"><span class="k">import</span> torch</span><span class="cl"><span class="k">import</span> torch.nn <span class="k">as</span> nn</span><span class="cl"> </span><span class="cl"><span class="k">class</span> <span class="t">FENRollNoDep</span>(nn.Module):</span><span class="cl">    <span class="c">"""</span></span><span class="cl">    <span class="c">Feature-Escrow Network with Channel-Roll Write (No Depletion).</span></span><span class="cl">    <span class="c">Simple, fast, and SOTA among non-attention recurrent architectures.</span></span><span class="cl">    <span class="c">"""</span></span><span class="cl">    <span class="k">def</span> <span class="f">__init__</span>(self, input_dim, hidden_dim, num_classes):</span><span class="cl">        <span class="f">super</span>().__init__()</span><span class="cl">        self.hidden_dim = hidden_dim</span><span class="cl">        self.x_proj   = nn.Linear(input_dim, hidden_dim)</span><span class="cl">        self.core     = nn.Linear(hidden_dim, hidden_dim)</span><span class="cl">        self.gate     = nn.Linear(hidden_dim, hidden_dim)</span><span class="cl">        self.v_proj   = nn.Linear(hidden_dim, hidden_dim)</span><span class="cl">        self.roll_gate = nn.Linear(hidden_dim, <span class="s">1</span>)</span><span class="cl">        self.head     = nn.Linear(hidden_dim * <span class="s">2</span>, num_classes)</span><span class="cl"> </span><span class="cl">    <span class="k">def</span> <span class="f">forward</span>(self, x):</span><span class="cl">        B, T, _ = x.shape</span><span class="cl lh">        h = x.new_zeros(B, self.hidden_dim)</span><span class="cl le">        E = x.new_zeros(B, self.hidden_dim)</span><span class="cl">        x_p = self.x_proj(x)</span><span class="cl">        <span class="k">for</span> t <span class="k">in</span> <span class="f">range</span>(T):</span><span class="cl lh">            z = h + x_p[:, t]</span><span class="cl lh">            f = torch.tanh(self.core(z) + z)        <span class="c"># 1. recurrent state proposal</span></span><span class="cl le">            g = torch.sigmoid(self.gate(f))          <span class="c"># 2. extraction gate</span></span><span class="cl le">            D = g * f</span><span class="cl le">            v = self.v_proj(D)</span><span class="cl lh">            h = f                                    <span class="c"># 3. temporal state · NO depletion</span></span><span class="cl le">            gamma = torch.sigmoid(self.roll_gate(f)) <span class="c"># 4. escrow channel-roll update</span></span><span class="cl le">            E = (<span class="s">1.0</span> - gamma) * E + gamma * torch.roll(E, shifts=<span class="s">1</span>, dims=-<span class="s">1</span>) + v</span><span class="cl">        <span class="c"># 5. joint decision head over [h_T] and escrow vault [E]</span></span><span class="cl">        <span class="k">return</span> self.head(torch.cat([h, E], dim=-<span class="s">1</span>))</span></pre>
     </div>
   </div>
 </section>
 
 <!-- ============ 06 EXPERIMENTS ============ -->
-<section class="sec" id="experiments">
-  <div class="wrap">
-    <div class="shead rv"><span class="sidx">06</span><h2>Experiment Directory</h2><span class="stag">CLEAN-SLATE · REPRODUCIBLE · fen_lab/</span></div>
-    <div class="srule"></div>
+<section class="content" id="experiments">
+  <div class="container">
+    <div class="sec-head rv">
+      <span class="sec-num">06</span>
+      <h2>Experiment Directory</h2>
+      <span class="sec-tag">Clean-slate · reproducible · fen_lab/</span>
+    </div>
+    <div class="sec-rule"></div>
     <div class="epanel rv">
       <div class="tscroll">
-      <table class="tbl">
-        <tr><th>EXP ID</th><th>SCRIPT</th><th>RESEARCH ROLE &amp; OBJECTIVE</th></tr>
-        <tr class="xrow"><td class="mid">exp01</td><td class="msc">exp01_baseline_dual_task.py</td><td>FEN architecture family on synthetic foundation probes</td></tr>
-        <tr class="xrow"><td class="mid">exp01b</td><td class="msc">exp01b_lstm_baseline.py</td><td>Matched LSTM + Residual RNN baselines on foundation probes</td></tr>
-        <tr class="xrow"><td class="mid">exp02</td><td class="msc">exp02_ode_fen_order_ablation.py</td><td>Soft-tape order and cell-aligned readout ablations</td></tr>
-        <tr class="xrow"><td class="mid">exp03</td><td class="msc">exp03_write_vs_readout.py</td><td>Cross-grid of write topologies × readout mechanisms</td></tr>
-        <tr class="xrow"><td class="mid">exp04</td><td class="msc">exp04_mid_deliver.py</td><td>Decision-time read vs continuous step-wise reinjection</td></tr>
-        <tr class="xrow"><td class="mid">exp05</td><td class="msc">exp05_real_data.py</td><td>MIT-BIH ECG 1D waveform classification</td></tr>
-        <tr class="xrow"><td class="mid">exp05b</td><td class="msc">exp05_forda.py</td><td>FordA acoustic sensor noise classification</td></tr>
-        <tr class="xrow"><td class="mid">exp06</td><td class="msc">exp06_multipass_read.py</td><td>Multi-pass discrete readout evaluation</td></tr>
-        <tr class="xrow"><td class="mid">exp07</td><td class="msc">exp07_shared_board.py</td><td>Dual experts with shared escrow blackboard</td></tr>
-        <tr class="xrow"><td class="mid">exp08</td><td class="msc">exp08_smnist.py</td><td>sMNIST sequential digit hard benchmark (FEN sweep)</td></tr>
-        <tr class="xrow"><td class="mid">exp08b</td><td class="msc">exp08b_lstm_smnist_sweep.py</td><td>Best-effort 30-epoch LSTM hyperparameter sweep on sMNIST</td></tr>
-        <tr class="xrow"><td class="mid">exp09</td><td class="msc">exp09_pmnist.py</td><td>pMNIST permuted stream — spatial locality vs ordered escrow probe</td></tr>
-        <tr class="xrow"><td class="mid">exp10</td><td class="msc">exp10_cifar100.py</td><td>Sequential CIFAR-100 patch benchmark (P4 &amp; P2)</td></tr>
-        <tr class="xrow"><td class="mid">exp11</td><td class="msc">exp11_stress_curve.py</td><td>CIFAR sequential stress regime map (P8 → P4 → P2)</td></tr>
-        <tr class="xrow"><td class="mid">exp12</td><td class="msc">exp12_deplete_law.py</td><td>Deplete ON/OFF grid ablation on Distracted Counting</td></tr>
-        <tr class="xrow"><td class="mid">exp12b</td><td class="msc">exp12b_roll_nodep_smnist.py</td><td>sMNIST Channel-Roll without depletion (roll_nodep)</td></tr>
-        <tr class="xrow"><td class="mid">exp13</td><td class="msc">exp13_hierarchical_cifar.py</td><td>Hierarchical FEN on pixel-level T=1024 CIFAR-100</td></tr>
-      </table>
+        <table class="tbl">
+          <tr>
+            <th>Exp ID</th>
+            <th>Script</th>
+            <th>Research role &amp; objective</th>
+          </tr>
+          <tr><td class="mid">exp01</td><td class="msc">exp01_baseline_dual_task.py</td><td>FEN architecture family on synthetic foundation probes</td></tr>
+          <tr><td class="mid">exp01b</td><td class="msc">exp01b_lstm_baseline.py</td><td>Matched LSTM + Residual RNN baselines on foundation probes</td></tr>
+          <tr><td class="mid">exp02</td><td class="msc">exp02_ode_fen_order_ablation.py</td><td>Soft-tape order and cell-aligned readout ablations</td></tr>
+          <tr><td class="mid">exp03</td><td class="msc">exp03_write_vs_readout.py</td><td>Cross-grid of write topologies × readout mechanisms</td></tr>
+          <tr><td class="mid">exp04</td><td class="msc">exp04_mid_deliver.py</td><td>Decision-time read vs continuous step-wise reinjection</td></tr>
+          <tr><td class="mid">exp05</td><td class="msc">exp05_real_data.py</td><td>MIT-BIH ECG 1D waveform classification</td></tr>
+          <tr><td class="mid">exp05b</td><td class="msc">exp05_forda.py</td><td>FordA acoustic sensor noise classification</td></tr>
+          <tr><td class="mid">exp06</td><td class="msc">exp06_multipass_read.py</td><td>Multi-pass discrete readout evaluation</td></tr>
+          <tr><td class="mid">exp07</td><td class="msc">exp07_shared_board.py</td><td>Dual experts with shared escrow blackboard</td></tr>
+          <tr><td class="mid">exp08</td><td class="msc">exp08_smnist.py</td><td>sMNIST sequential digit hard benchmark (FEN sweep)</td></tr>
+          <tr><td class="mid">exp08b</td><td class="msc">exp08b_lstm_smnist_sweep.py</td><td>Best-effort 30-epoch LSTM hyperparameter sweep on sMNIST</td></tr>
+          <tr><td class="mid">exp09</td><td class="msc">exp09_pmnist.py</td><td>pMNIST permuted stream — spatial locality vs ordered escrow probe</td></tr>
+          <tr><td class="mid">exp10</td><td class="msc">exp10_cifar100.py</td><td>Sequential CIFAR-100 patch benchmark (P4 &amp; P2)</td></tr>
+          <tr><td class="mid">exp11</td><td class="msc">exp11_stress_curve.py</td><td>CIFAR sequential stress regime map (P8 → P4 → P2)</td></tr>
+          <tr><td class="mid">exp12</td><td class="msc">exp12_deplete_law.py</td><td>Deplete ON/OFF grid ablation on Distracted Counting</td></tr>
+          <tr><td class="mid">exp12b</td><td class="msc">exp12b_roll_nodep_smnist.py</td><td>sMNIST Channel-Roll without depletion (roll_nodep)</td></tr>
+          <tr><td class="mid">exp13</td><td class="msc">exp13_hierarchical_cifar.py</td><td>Hierarchical FEN on pixel-level $T{=}1024$ CIFAR-100</td></tr>
+        </table>
       </div>
     </div>
   </div>
 </section>
 
 <!-- ============ 07 SCOPE ============ -->
-<section class="sec" id="scope">
-  <div class="wrap">
-    <div class="shead rv"><span class="sidx">07</span><h2>Explicit Scope &amp; Non-Claims</h2><span class="stag">HONEST BOUNDARIES</span></div>
-    <div class="srule"></div>
+<section class="content" id="scope">
+  <div class="container">
+    <div class="sec-head rv">
+      <span class="sec-num">07</span>
+      <h2>Explicit Scope &amp; Non-Claims</h2>
+      <span class="sec-tag">Honest boundaries</span>
+    </div>
+    <div class="sec-rule"></div>
     <div class="stamps rv">
-      <div class="stamp"><span class="x">✕</span><p>We do <b>not</b> claim universal SOTA over 2D Convolutional Networks or Transformers on vision / language tasks.</p></div>
-      <div class="stamp"><span class="x">✕</span><p>We do <b>not</b> claim the Bag vault is superior for sequence ordering — <b>Channel-Roll</b> is the ordering specialist.</p></div>
-      <div class="stamp"><span class="x">✕</span><p>We do <b>not</b> claim depletion is necessary for learning. It is optional pipe hygiene — sometimes it even costs peak accuracy.</p></div>
+      <div class="stamp">
+        <span class="x">✕</span>
+        <p>We do <strong>not</strong> claim universal SOTA over 2D Convolutional Networks or Transformers on vision / language tasks.</p>
+      </div>
+      <div class="stamp">
+        <span class="x">✕</span>
+        <p>We do <strong>not</strong> claim the Bag vault is superior for sequence ordering — <strong>Channel-Roll</strong> is the ordering specialist.</p>
+      </div>
+      <div class="stamp">
+        <span class="x">✕</span>
+        <p>We do <strong>not</strong> claim depletion is necessary for learning. It is optional pipe hygiene — sometimes it even costs peak accuracy.</p>
+      </div>
     </div>
     <div class="core rv">
-      <h4>◆ THE CORE FINDING</h4>
-      <p>Decoupling temporal dynamics from feature accumulation via <span class="mkc">speculative write-time escrow</span> resolves the single-state RNN bottleneck in <span class="mono amb">O(T)</span> time and <span class="mono cy">O(1)</span> memory — with attention-grade preservation and epoch-one learning speed.</p>
+      <h4>◆ The Core Finding</h4>
+      <p>Decoupling temporal dynamics from feature accumulation via <em>speculative write-time escrow</em> resolves the single-state RNN bottleneck in $O(T)$ time and $O(1)$ memory — with attention-grade preservation and epoch-one learning speed.</p>
     </div>
   </div>
 </section>
+
 </main>
 
 <footer>
-  <div class="wrap">
+  <div class="container">
     <div class="fword rv">FEN_LAB</div>
     <div class="frow rv">
-      <a href="https://github.com/becabytess/Feature-Escrow-Networks" target="_blank" rel="noopener">GITHUB — FEATURE-ESCROW-NETWORKS ↗</a>
-      <a href="#evidence">EMPIRICAL EVIDENCE</a>
-      <a href="#code">SOURCE — roll_nodep</a>
-      <a href="#top" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">BACK TO TOP ↑</a>
+      <a href="https://github.com/becabytess/Feature-Escrow-Networks" target="_blank" rel="noopener">GitHub — feature-escrow-networks ↗</a>
+      <a href="#evidence">Empirical evidence</a>
+      <a href="#code">Source · roll_nodep</a>
+      <a href="#top" onclick="window.scrollTo({top:0,behavior:'smooth'});return false">Back to top ↑</a>
     </div>
-    <div class="fmeta">FEN_LAB · RESEARCH_CORE · REPORT RENDERED 01 AUG 2026 · DUAL-PATHWAY DOCTRINE — DEPOSIT WHEN READY.</div>
+    <div class="fmeta">FEN_LAB · Research Core · Report rendered 01 Aug 2026 · Dual-pathway doctrine · deposit when ready</div>
   </div>
 </footer>
 
+<div id="toast" class="toast">Code copied to clipboard</div>
+
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 <script>
-const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+// KaTeX render
+renderMathInElement(document.body, {
+  delimiters: [
+    { left: '$$', right: '$$', display: true },
+    { left: '$', right: '$', display: false }
+  ],
+  throwOnError: false
+});
 
-/* progress bar */
-addEventListener('scroll',()=>{const h=document.documentElement;
-  $('#prog').style.width=(h.scrollTop/(h.scrollHeight-h.clientHeight)*100)+'%';},{passive:true});
+// Progress bar
+const prog = document.getElementById('progress');
+window.addEventListener('scroll', () => {
+  const h = document.documentElement;
+  const pct = (h.scrollTop / (h.scrollHeight - h.clientHeight)) * 100;
+  prog.style.width = pct + '%';
+}, { passive: true });
 
-/* ambient glyph field */
-const cv=$('#bg'),cx=cv.getContext('2d');let W,H;
-function rs(){W=cv.width=innerWidth;H=cv.height=innerHeight}rs();addEventListener('resize',rs);
-const GL=['xₜ','hₜ','φ','Σ','E','γ','∇','∂','O(T)','O(1)','Δ','Roll'];
-const ps=Array.from({length:44},(_,i)=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,
-  s:9+Math.random()*15,v:.1+Math.random()*.28,a:.035+Math.random()*.06,g:GL[i%GL.length],
-  c:Math.random()<.5?'255,180,84':'86,217,246'}));
-function tick(){cx.clearRect(0,0,W,H);
-  for(const p of ps){p.y-=p.v;if(p.y<-24){p.y=H+24;p.x=Math.random()*W}
-    cx.font=p.s+'px JetBrains Mono';cx.fillStyle=`rgba(${p.c},${p.a})`;cx.fillText(p.g,p.x,p.y)}
-  requestAnimationFrame(tick)}
-if(!RM)tick();
+// Count-up
+function countUp(el) {
+  if (el._c) return;
+  el._c = 1;
+  const t = parseFloat(el.dataset.count);
+  const d = +(el.dataset.dec || 0);
+  const suf = el.dataset.suf || '';
+  const t0 = performance.now();
+  (function f(n) {
+    const p = Math.min(1, (n - t0) / 1500);
+    const e = 1 - Math.pow(1 - p, 3);
+    el.textContent = (t * e).toFixed(d) + suf;
+    if (p < 1) requestAnimationFrame(f);
+  })(t0);
+}
 
-/* count-up */
-function countUp(el){if(el._c)return;el._c=1;
-  const t=parseFloat(el.dataset.count),d=+(el.dataset.dec||0),suf=el.dataset.suf||'',t0=performance.now();
-  (function f(n){const p=Math.min(1,(n-t0)/1500),e=1-Math.pow(1-p,3);
-    el.textContent=(t*e).toFixed(d)+suf;if(p<1)requestAnimationFrame(f)})(t0);}
-
-/* reveal + chart triggers */
-const io=new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting)return;
+// Scroll reveal + bar fills + count-up
+const io = new IntersectionObserver(es => es.forEach(e => {
+  if (!e.isIntersecting) return;
   e.target.classList.add('in');
-  e.target.querySelectorAll('.bar').forEach(b=>b.style.width=b.dataset.w+'%');
+  e.target.querySelectorAll('.bar').forEach(b => b.style.width = b.dataset.w + '%');
   e.target.querySelectorAll('[data-count]').forEach(countUp);
-  io.unobserve(e.target);}),{threshold:.15});
-$$('.rv').forEach(el=>io.observe(el));
+  io.unobserve(e.target);
+}), { threshold: 0.12 });
+document.querySelectorAll('.rv').forEach(el => io.observe(el));
 
-/* switch console */
-const MODES={
-  bag:{name:'BAG VAULT',op:'E ← Σₜ φ(hₜ)',job:'Dual-role / static fact retention',
-    note:'Distracted Counting solved — 95.1% joint peak (fen_copy)',
-    cap:'Commutative summation — order discarded, facts retained forever.'},
-  slots:{name:'SLOTS / HARD TAPE',op:'E[k] ← E[k] + vₜ',job:'Exact ordered token sequence outputs',
-    note:'Recall5 exact-sequence recovery — 96–100%',
-    cap:'Addressable ordered cells — every token lands in its own slot.'},
-  roll:{name:'CHANNEL-ROLL VAULT',op:'Eₜ ← (1−γ)Eₜ₋₁ + γ·Roll(Eₜ₋₁) + vₜ',job:'Long ordered scans — pixels · audio · sensors',
-    note:'sMNIST 88.7% peak · pMNIST 87.5% — true temporal escrow',
-    cap:'Ratchet write — contents shift one channel per step; sequence order is physically encoded.'},
-  hybrid:{name:'HYBRID (BAG ⊕ ROLL)',op:'parallel bag + roll vaults',job:'Spatial 2D raster image peak specialist',
-    note:'sMNIST 90.6% peak — raster champion',
-    cap:'Concurrent vaults — order-free facts plus ordered stream, in parallel.'}
+// Mode switcher
+const MODES = {
+  bag: {
+    name: 'Bag Vault',
+    op: '$E \\leftarrow \\sum_t \\varphi(h_t)$',
+    job: 'Dual-role / static fact retention',
+    note: 'Distracted Counting solved — 95.1% joint peak (fen_copy)',
+    cap: 'Commutative summation — order discarded, facts retained forever.'
+  },
+  slots: {
+    name: 'Slots / Hard Tape',
+    op: '$E[k] \\leftarrow E[k] + v_t$',
+    job: 'Exact ordered token sequence outputs',
+    note: 'Recall5 exact-sequence recovery — 96–100%',
+    cap: 'Addressable ordered cells — every token lands in its own slot.'
+  },
+  roll: {
+    name: 'Channel-Roll Vault',
+    op: '$E_t \\leftarrow (1-\\gamma)E_{t-1} + \\gamma \\cdot \\text{Roll}(E_{t-1}) + v_t$',
+    job: 'Long ordered scans · pixels, audio, sensors',
+    note: 'sMNIST 88.7% peak · pMNIST 87.5% — true temporal escrow',
+    cap: 'Ratchet write — contents shift one channel per step; sequence order is physically encoded.'
+  },
+  hybrid: {
+    name: 'Hybrid (Bag ⊕ Roll)',
+    op: 'parallel bag + roll vaults',
+    job: 'Spatial 2D raster image peak specialist',
+    note: 'sMNIST 90.6% peak — raster champion',
+    cap: 'Concurrent vaults — order-free facts plus ordered stream, in parallel.'
+  }
 };
-function setMode(m){const d=MODES[m];
-  $$('.mode').forEach(b=>b.classList.toggle('on',b.dataset.m===m));
-  $$('.vv').forEach(v=>v.classList.toggle('on',v.dataset.v===m));
-  $('#roName').textContent=d.name;$('#roOp').textContent=d.op;
-  $('#roJob').textContent=d.job;$('#roNote').textContent=d.note;
-  $('#vizName').textContent=d.name;$('#vizCap').textContent=d.cap;}
-$$('.mode').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.m)));
 
-const DEP={
-  off:{lab:'OFF — hₜ UNMODIFIED',badge:'DEPLETION OFF · PURE ACCUMULATION',note:'5.36 — pure accumulation · universal default',gf:'89%'},
-  on:{lab:'ON — hₜ ← hₜ − Dₜ',badge:'DEPLETION ON · PIPE-HYGIENE',note:'1.84 — state trimmed · optional regularizer (−17.6% peak risk)',gf:'31%'}
+function setMode(m) {
+  const d = MODES[m];
+  document.querySelectorAll('.mode').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+  document.querySelectorAll('.vv').forEach(v => v.classList.toggle('on', v.dataset.v === m));
+  const roName = document.getElementById('roName');
+  const roOp = document.getElementById('roOp');
+  const roJob = document.getElementById('roJob');
+  const roNote = document.getElementById('roNote');
+  const vizName = document.getElementById('vizName');
+  const vizCap = document.getElementById('vizCap');
+  roName.textContent = d.name;
+  roOp.textContent = d.op;
+  roJob.textContent = d.job;
+  roNote.textContent = d.note;
+  vizName.textContent = d.name;
+  vizCap.textContent = d.cap;
+  // Re-render KaTeX for dynamic text
+  [roName, roOp, roJob, roNote, vizName, vizCap].forEach(el => {
+    if (window.renderMathInElement) {
+      renderMathInElement(el, {
+        delimiters: [{ left: '$$', right: '$$', display: true }, { left: '$', right: '$', display: false }],
+        throwOnError: false
+      });
+    }
+  });
+}
+
+document.querySelectorAll('.mode').forEach(b => {
+  b.addEventListener('click', () => setMode(b.dataset.m));
+});
+
+// Depletion switch
+const DEP = {
+  off: {
+    lab: 'Off · $h_t$ unmodified',
+    badge: 'Depletion off · Pure accumulation',
+    note: '5.36 · pure accumulation · universal default',
+    gf: '89%'
+  },
+  on: {
+    lab: 'On · $h_t \\leftarrow h_t - D_t$',
+    badge: 'Depletion on · Pipe-hygiene',
+    note: '1.84 · state trimmed · optional regularizer (−17.6% peak risk)',
+    gf: '31%'
+  }
 };
-$('#depSw').addEventListener('change',e=>{const d=e.target.checked?DEP.on:DEP.off;
-  $('#depLab').textContent=d.lab;$('#depBadge').textContent=d.badge;
-  $('#depNote').textContent=d.note;$('#gf').style.height=d.gf;
-  $('#gf').style.background=e.target.checked
-    ?'linear-gradient(180deg,var(--amb),var(--amb2))'
-    :'linear-gradient(180deg,var(--cy),var(--cy2))';});
 
-/* copy code */
-$('#copyBtn').addEventListener('click',async()=>{
-  const txt=$$('#code .cl').map(l=>l.textContent).join('\n');
-  try{await navigator.clipboard.writeText(txt);
-    const b=$('#copyBtn');b.textContent='COPIED ✓';b.style.color='var(--ok)';b.style.borderColor='var(--ok)';
-    setTimeout(()=>{b.textContent='COPY ⧉';b.style.color='';b.style.borderColor=''},1600);
-  }catch(e){$('#copyBtn').textContent='SELECT + COPY';}});
+document.getElementById('depSw').addEventListener('change', e => {
+  const d = e.target.checked ? DEP.on : DEP.off;
+  const depLab = document.getElementById('depLab');
+  const depBadge = document.getElementById('depBadge');
+  const depNote = document.getElementById('depNote');
+  const gf = document.getElementById('gf');
+  depLab.textContent = d.lab;
+  depBadge.textContent = d.badge;
+  depNote.textContent = d.note;
+  gf.style.height = d.gf;
+  [depLab, depBadge, depNote].forEach(el => {
+    if (window.renderMathInElement) {
+      renderMathInElement(el, {
+        delimiters: [{ left: '$$', right: '$$', display: true }, { left: '$', right: '$', display: false }],
+        throwOnError: false
+      });
+    }
+  });
+});
+
+// Copy code
+document.getElementById('copyBtn').addEventListener('click', async () => {
+  const txt = [...document.querySelectorAll('#code .cl')].map(l => l.textContent).join('\n');
+  const btn = document.getElementById('copyBtn');
+  try {
+    await navigator.clipboard.writeText(txt);
+    btn.textContent = 'Copied ✓';
+    btn.style.color = 'var(--ok)';
+    btn.style.borderColor = 'var(--ok)';
+    const toast = document.getElementById('toast');
+    toast.classList.add('show');
+    setTimeout(() => {
+      btn.textContent = 'Copy ↗';
+      btn.style.color = '';
+      btn.style.borderColor = '';
+      toast.classList.remove('show');
+    }, 2000);
+  } catch (e) {
+    btn.textContent = 'Select + copy';
+  }
+});
+
+// Reduced motion
+if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  document.querySelectorAll('.rv').forEach(el => el.classList.add('in'));
+  document.querySelectorAll('.bar').forEach(b => b.style.width = b.dataset.w + '%');
+  document.querySelectorAll('[data-count]').forEach(countUp);
+}
 </script>
+
 </body>
 </html>
